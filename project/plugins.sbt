@@ -8,3 +8,4 @@ resolvers += "GitHub Package Registry" at "https://maven.pkg.github.com/precog/_
 
 addSbtPlugin("com.eed3si9n" % "sbt-buildinfo" % "0.10.0")
 addSbtPlugin("com.precog"   % "sbt-precog"    % "3.0.1")
+addSbtPlugin("com.precog"   % "sbt-quasar-plugin" % "1.0.0")
