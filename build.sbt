@@ -11,6 +11,9 @@ ThisBuild / scmInfo := Some(ScmInfo(
 
 ThisBuild / publishAsOSSProject := true
 
+val googleAuthVersion = "0.20.0"
+val bigTableVersion = "1.20.1"
+
 val specs2Version = "4.10.5"
 val catsEffectTestingSpecs2Version = "0.4.1"
 val log4jVersion = "2.14.0"
@@ -25,20 +28,10 @@ lazy val publishTestsSettings = Seq(
 lazy val root = project
   .in(file("."))
   .settings(noPublishSettings)
-  .aggregate(core)
-
-lazy val core = project
-  .in(file("core"))
-  .settings(
-    name := "quasar-plugin-googlebigtable",
-    libraryDependencies ++= Seq(
-      "com.codecommit" %% "cats-effect-testing-specs2" % catsEffectTestingSpecs2Version % Test,
-      "org.specs2" %% "specs2-core" % specs2Version % Test
-    ))
+  .aggregate(datasource)
 
 lazy val datasource = project
   .in(file("datasource"))
-  .dependsOn(core % BothScopes)
   .settings(
     name := "quasar-datasource-googlebigtable",
 
@@ -46,10 +39,16 @@ lazy val datasource = project
     quasarPluginQuasarVersion := quasarVersion.value,
     quasarPluginDatasourceFqcn := Some("quasar.plugin.googlebigtable.datasource.GoogleBigTableDatasourceModule$"),
 
-    quasarPluginDependencies ++= Seq(),
+    quasarPluginDependencies ++= Seq(
+      "com.google.auth" % "google-auth-library-oauth2-http" % googleAuthVersion,
+      "com.google.cloud.bigtable" % "bigtable-hbase-1.x" % bigTableVersion
+    ),
 
     libraryDependencies ++= Seq(
+      "com.precog" %% "quasar-foundation"   % managedVersions.value("precog-quasar") % Test classifier "tests",
       "org.specs2" %% "specs2-core" % specs2Version % Test,
+      "org.specs2"             %% "specs2-scalacheck"   % specs2Version % Test,
+      "org.specs2"             %% "specs2-scalaz"       % specs2Version % Test,
       "com.codecommit" %% "cats-effect-testing-specs2" % catsEffectTestingSpecs2Version % Test,
       "org.apache.logging.log4j" % "log4j-core" % log4jVersion % Test,
       "org.apache.logging.log4j" % "log4j-slf4j-impl" % log4jVersion % Test

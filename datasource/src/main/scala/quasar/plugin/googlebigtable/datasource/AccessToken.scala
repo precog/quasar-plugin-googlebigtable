@@ -16,9 +16,29 @@
 
 package quasar.plugin.googlebigtable.datasource
 
-import argonaut._ //, Argonaut._
+import cats.effect.Sync
+import cats.implicits._
 
-object json {
+import scala.{
+  Array,
+  Byte
+}
 
-  implicit val codecConfig: CodecJson[Config] = scala.Predef.???
+import java.io.ByteArrayInputStream
+
+import com.google.auth.{oauth2 => g}
+
+object AccessToken {
+  def token[F[_]: Sync](auth: Array[Byte]): F[g.AccessToken] = {
+    val credentials = Sync[F] delay {
+      val authInputStream = new ByteArrayInputStream(auth)
+      g.GoogleCredentials
+        .fromStream(authInputStream)
+        .createScoped("https://www.googleapis.com/auth/cloud-platform")
+    }
+
+    credentials.flatMap(creds =>
+      Sync[F].delay(creds.refreshIfExpired()) >>
+        Sync[F].delay(creds.refreshAccessToken()))
+  }
 }
