@@ -9,3 +9,5 @@ target/
 /scripts/closePR
 /scripts/publishAndTag
 /scripts/readVersion
+
+/datasource/src/test/resources/precog-ci-275718-6d5ee6b82f02.json

@@ -18,24 +18,33 @@ package quasar.plugin.googlebigtable.datasource
 
 import slamdata.Predef._
 
-import java.io.ByteArrayInputStream
+import quasar.api.resource.{/:, ResourcePath}
 
 import cats.effect.Sync
 import com.google.auth.oauth2.GoogleCredentials
+import com.precog.googleauth.{Credentials, ServiceAccount}
 import monocle.Prism
 
 final case class TableName(value: String)
 
+object TableName {
+  def fromResourcePath(path: ResourcePath): Option[TableName] = path match {
+    case ResourcePath.Root => None
+    case t /: ResourcePath.Root => Some(TableName(t))
+    case _ => None
+  }
+}
+
 final case class Config(instanceId: String, serviceAccount: ServiceAccount) {
-  
+
+  val Scope = "https://www.googleapis.com/auth/cloud-platform"
+
   def sanitize: Config = this
 
   def instancePath: String = s"projects/${serviceAccount.projectId}/instances/$instanceId"
 
-  def credentials[F[_]: Sync]: F[GoogleCredentials] = Sync[F].delay(
-    GoogleCredentials
-      .fromStream(new ByteArrayInputStream(serviceAccount.serviceAccountAuthBytes))
-      .createScoped("https://www.googleapis.com/auth/cloud-platform"))
+  def credentials[F[_]: Sync]: F[GoogleCredentials] =
+    Credentials.googleCredentials(serviceAccount.serviceAccountAuthBytes, Scope)
 
   private def tablesPath = instancePath + "/tables/"
 
@@ -43,7 +52,7 @@ final case class Config(instanceId: String, serviceAccount: ServiceAccount) {
     Prism[String, TableName](extractTableName)(t => tablesPath + t.value)
 
   private def extractTableName(fullName: String): Option[TableName] =
-    if (fullName.startsWith(tablesPath)) 
+    if (fullName.startsWith(tablesPath))
       Some(TableName(fullName.substring(tablesPath.length)))
     else
       None

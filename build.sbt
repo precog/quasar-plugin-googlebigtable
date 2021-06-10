@@ -11,7 +11,7 @@ ThisBuild / scmInfo := Some(ScmInfo(
 
 ThisBuild / publishAsOSSProject := true
 
-val googleAuthVersion = "0.20.0"
+val precogGoogleAuthVersion = "0.0.1"
 val bigTableVersion = "1.20.1"
 
 val specs2Version = "4.10.5"
@@ -40,7 +40,7 @@ lazy val datasource = project
     quasarPluginDatasourceFqcn := Some("quasar.plugin.googlebigtable.datasource.GoogleBigTableDatasourceModule$"),
 
     quasarPluginDependencies ++= Seq(
-      "com.google.auth" % "google-auth-library-oauth2-http" % googleAuthVersion,
+      "com.precog" %% "precog-google-auth" % precogGoogleAuthVersion,
       "com.google.cloud.bigtable" % "bigtable-hbase-1.x" % bigTableVersion
     ),
 

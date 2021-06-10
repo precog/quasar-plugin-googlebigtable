@@ -70,7 +70,7 @@ class InitializeSpec extends Specification with CatsIO {
 
   "initialize" >> {
     for {
-      config <- readServiceAccount[IO](AuthResourceName).map(Config("precog-test", _))
+      config <- testConfig[IO]
       adminClient <- GoogleBigTable.adminClient[IO](config)
       dataClient <- GoogleBigTable.dataClient[IO](config)
       created <- ensureTable(adminClient, TableId, ColumnFamily)
