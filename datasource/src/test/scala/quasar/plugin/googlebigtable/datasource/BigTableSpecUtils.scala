@@ -39,12 +39,12 @@ object BigTableSpecUtils {
     MonadError_.facet[IO](ResourceError.throwableP)
 
   val AuthResourceName = "precog-ci-275718-6d5ee6b82f02.json"
-  val InstanceName = "precog-test"
-  val TableId = "test-table"
+  val PrecogInstance = InstanceId("precog-test")
+  val PrecogTable = TableName("test-table")
   val ColumnFamily = "cf1"
 
   def testConfig[F[_]: Sync]: F[Config] =
-    ServiceAccount.fromResourceName[F](AuthResourceName).map(Config(InstanceName, _))
+    ServiceAccount.fromResourceName[F](AuthResourceName).map(Config(_, PrecogInstance, PrecogTable, RowPrefix("")))
 
   def ensureTable(adminClient: BigtableTableAdminClient, tableId: String, columnFamily: String): IO[Boolean] =
     IO {

@@ -34,8 +34,6 @@ import org.specs2.mutable.Specification
 class InitializeSpec extends Specification with CatsIO {
   import BigTableSpecUtils._
 
-
-
   def read(dataClient: BigtableDataClient, tableId: String): IO[List[Row]] =
     IO.delay {
       val query = Query.create(tableId)

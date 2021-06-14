@@ -33,7 +33,7 @@ object GoogleBigTable {
           BigtableDataSettings
             .newBuilder()
             .setProjectId(config.serviceAccount.projectId)
-            .setInstanceId(config.instanceId)
+            .setInstanceId(config.instanceId.value)
             .setCredentialsProvider(credsProv)
             .build()
         }
@@ -55,7 +55,7 @@ object GoogleBigTable {
           BigtableTableAdminSettings
             .newBuilder()
             .setProjectId(config.serviceAccount.projectId)
-            .setInstanceId(config.instanceId)
+            .setInstanceId(config.instanceId.value)
             .setCredentialsProvider(credsProv)
             .build()
         }

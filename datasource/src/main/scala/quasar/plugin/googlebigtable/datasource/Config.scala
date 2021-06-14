@@ -35,7 +35,11 @@ object TableName {
   }
 }
 
-final case class Config(instanceId: String, serviceAccount: ServiceAccount) {
+final case class InstanceId(value: String)
+
+final case class RowPrefix(value: String)
+
+final case class Config(serviceAccount: ServiceAccount, instanceId: InstanceId, tableName: TableName, rowPrefix: RowPrefix) {
 
   val Scope = "https://www.googleapis.com/auth/cloud-platform"
 
