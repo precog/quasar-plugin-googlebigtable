@@ -27,8 +27,6 @@ import quasar.connector._
 import quasar.connector.datasource.{BatchLoader, LightweightDatasource, Loader}
 import quasar.qscript.InterpretedRead
 
-import scala.collection.JavaConverters._
-
 import cats.Applicative
 import cats.data.NonEmptyList
 import cats.effect._
@@ -54,34 +52,21 @@ final class GoogleBigTableDatasource[F[_]: Sync: MonadResourceErr](
     NonEmptyList.of(Loader.Batch(BatchLoader.Seek(loader(_, _))))
 
   def pathIsResource(path: ResourcePath): Resource[F, Boolean] =
-    TableName.fromResourcePath(path).fold(
-      false.pure[Resource[F, *]])(
-      t => Resource.liftF(tableExists(t)))
+    (config.resourcePath === path).pure[Resource[F, *]]
 
   type CPS = Stream[F, (ResourceName, ResourcePathType.Physical)]
 
   def prefixedChildPaths(prefixPath: ResourcePath)
-      : Resource[F, Option[CPS]] =
-    if (prefixPath === ResourcePath.Root)
-      Resource.liftF {
-        fetchTables(config.instancePath).map(r => (r, ResourcePathType.leafResource))
-          .some
-          .pure[F]
-      }
-    else
-      pathIsResource(prefixPath).map(if (_) (Stream.empty: CPS).some else none)
+      : Resource[F, Option[CPS]] = {
+    val res: Option[CPS] =
+      if (prefixPath === ResourcePath.Root)
+        Stream.emit((config.resourceName, ResourcePathType.leafResource)).some
+      else if (prefixPath === config.resourcePath)
+        (Stream.empty: CPS).some
+      else
+        none
 
-  private def tableExists(tableName: TableName): F[Boolean] =
-    Sync[F].delay(adminClient.exists(tableName.value))
-
-  private def fetchTables(instancePath: String): Stream[F, ResourceName] = {
-    val ts = Sync[F].delay {
-      adminClient
-        .listTables()
-        .asScala
-        .map(ResourceName(_))
-    }
-    Stream.evalSeq(ts)
+    res.pure[Resource[F, *]]
   }
 
   private def loader(iRead: InterpretedRead[ResourcePath], offset: Option[Offset]):
@@ -90,14 +75,15 @@ final class GoogleBigTableDatasource[F[_]: Sync: MonadResourceErr](
     val errored =
       Resource.liftF(MonadResourceErr.raiseError(ResourceError.pathNotFound(path)))
 
-    val res: Resource[F, (ScalarStages, Stream[F, Row])] = TableName.fromResourcePath(path) match {
-      case None => errored
-      case Some(tableName) =>
+    val res: Resource[F, (ScalarStages, Stream[F, Row])] =
+      if (path === config.resourcePath)
         for {
           off <- Resource.liftF(offset.traverse(mkOffset(path, _)))
-          res <- Evaluator[F](dataClient, tableName, off, iRead.stages).evaluate
+          res <- Evaluator[F](dataClient, config.tableName, off, iRead.stages).evaluate
         } yield res
-    }
+      else
+        errored
+
     res.map {
       case (stages, rows) =>
         QueryResult.parsed(Decoder.qdataDecode, ResultData.Continuous(rows), stages)
