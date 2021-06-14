@@ -20,14 +20,11 @@ import slamdata.Predef._
 
 import scala.collection.JavaConverters._
 
-import cats.effect.IO
+import cats.effect.{IO, Resource}
 import cats.effect.testing.specs2.CatsIO
-import cats.implicits._
 
-import com.google.cloud.bigtable.admin.v2.BigtableTableAdminClient
-import com.google.cloud.bigtable.admin.v2.models.CreateTableRequest
 import com.google.cloud.bigtable.data.v2.BigtableDataClient
-import com.google.cloud.bigtable.data.v2.models.{Query, Row, RowMutation}
+import com.google.cloud.bigtable.data.v2.models.{Query, Row}
 
 import org.specs2.mutable.Specification
 
@@ -37,30 +34,7 @@ import org.specs2.mutable.Specification
 class InitializeSpec extends Specification with CatsIO {
   import BigTableSpecUtils._
 
-  def ensureTable(adminClient: BigtableTableAdminClient, tableId: String, columnFamily: String): IO[Boolean] =
-    IO.delay {
-      if (!adminClient.exists(tableId)) {
-        val req = CreateTableRequest.of(tableId).addFamily(columnFamily)
-        adminClient.createTable(req)
-        println(s"Table $tableId created")
-        true
-      } else {
-        println(s"Table $tableId already exists")
-        false
-      }
-    }
 
-  def writeToTable(dataClient: BigtableDataClient, tableId: String, columnFamily: String): IO[Unit] =
-    List("World", "Joe").zipWithIndex.traverse_ { p =>
-
-      val row =
-        RowMutation.create(tableId, s"rowKey${p._2}")
-          .setCell(columnFamily, "name", p._1)
-          .setCell(columnFamily, "greeting", s"Hey ${p._1}!")
-      IO.delay {
-        dataClient.mutateRow(row)
-      }
-    }
 
   def read(dataClient: BigtableDataClient, tableId: String): IO[List[Row]] =
     IO.delay {
@@ -70,14 +44,12 @@ class InitializeSpec extends Specification with CatsIO {
 
   "initialize" >> {
     for {
-      config <- testConfig[IO]
+      config <- Resource.liftF(testConfig[IO])
       adminClient <- GoogleBigTable.adminClient[IO](config)
       dataClient <- GoogleBigTable.dataClient[IO](config)
-      created <- ensureTable(adminClient, TableId, ColumnFamily)
-      _ <-
-        if (created) writeToTable(dataClient, TableId, ColumnFamily)
-        else ().pure[IO]
-      rows <- read(dataClient, TableId)
+      (_, t) <- table(adminClient)
+      _ <- Resource.liftF(writeToTable(dataClient, t, ColumnFamily))
+      rows <- Resource.liftF(read(dataClient, t))
     } yield (rows.size must be_===(2))
   }
 }

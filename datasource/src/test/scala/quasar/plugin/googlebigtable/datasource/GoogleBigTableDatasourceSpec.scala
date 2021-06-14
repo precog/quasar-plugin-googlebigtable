@@ -17,20 +17,17 @@
 package quasar.plugin.googlebigtable.datasource
 
 import quasar.api.resource.{ResourceName, ResourcePath, ResourcePathType}
-import quasar.connector.ResourceError
 import quasar.connector.datasource.{DatasourceSpec, LightweightDatasourceModule}
-import quasar.contrib.scalaz.MonadError_
 
 import cats.effect.{IO, Resource}
 import fs2.Stream
 
 class GoogleBigTableDatasourceSpec extends DatasourceSpec[IO, Stream[IO, ?], ResourcePathType.Physical] {
 
-  import GoogleBigTableDatasourceSpec._
   import BigTableSpecUtils._
 
   def mkDatasource(config: Config): Resource[IO, LightweightDatasourceModule.DS[IO]] =
-    GoogleBigTableDatasource(config)
+    GoogleBigTableDatasource[IO](config)
 
   val nonExistentPath =
     ResourcePath.root() / ResourceName("does") / ResourceName("not") / ResourceName("exist")
@@ -44,9 +41,4 @@ class GoogleBigTableDatasourceSpec extends DatasourceSpec[IO, Stream[IO, ?], Res
     datasource.flatMap(_.pathIsResource(res)).use(b => IO.pure(b must beTrue))
   }
 
-}
-
-object GoogleBigTableDatasourceSpec {
-  implicit val ioMonadResourceErr: MonadError_[IO, ResourceError] =
-    MonadError_.facet[IO](ResourceError.throwableP)
 }

@@ -16,7 +16,7 @@
 
 package quasar.plugin.googlebigtable.datasource
 
-import cats.effect.Sync
+import cats.effect.{Resource, Sync}
 import cats.implicits._
 
 import com.google.api.gax.core.FixedCredentialsProvider
@@ -39,9 +39,12 @@ object GoogleBigTable {
         }
     } yield settings
 
-  def dataClient[F[_]: Sync](config: Config): F[BigtableDataClient] =
-    dataSettings(config)
-      .flatMap(s => Sync[F].delay(BigtableDataClient.create(s)))
+  def dataClient[F[_]: Sync](config: Config): Resource[F, BigtableDataClient] = {
+    val acq =
+      dataSettings(config)
+        .flatMap(s => Sync[F].delay(BigtableDataClient.create(s)))
+    Resource.make(acq)(c => Sync[F].delay(c.close()))
+  }
 
   def adminSettings[F[_]: Sync](config: Config): F[BigtableTableAdminSettings] =
     for {
@@ -58,7 +61,10 @@ object GoogleBigTable {
         }
     } yield settings
 
-  def adminClient[F[_]: Sync](config: Config): F[BigtableTableAdminClient] =
-    adminSettings(config)
-      .flatMap(s => Sync[F].delay(BigtableTableAdminClient.create(s)))
+  def adminClient[F[_]: Sync](config: Config): Resource[F, BigtableTableAdminClient] = {
+    val acq =
+      adminSettings(config)
+        .flatMap(s => Sync[F].delay(BigtableTableAdminClient.create(s)))
+    Resource.make(acq)(c => Sync[F].delay(c.close()))
+  }
 }
