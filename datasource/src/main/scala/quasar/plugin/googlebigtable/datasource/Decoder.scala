@@ -23,11 +23,7 @@ import qdata.time.{DateTimeInterval, OffsetDate}
 
 import quasar.contrib.std.errorImpossible
 
-import java.time.OffsetDateTime
-import java.time.LocalDateTime
-import java.time.LocalTime
-import java.time.OffsetTime
-import java.time.LocalDate
+import java.time.{LocalDate, LocalDateTime, LocalTime, OffsetDateTime, OffsetTime}
 
 import com.google.cloud.bigtable.data.v2.models.Row
 import spire.math.Real

@@ -22,19 +22,38 @@ import quasar.api.resource.{ResourceName, ResourcePath}
 import quasar.connector.ResourceError
 import quasar.contrib.scalaz.MonadError_
 
+import scala.collection.JavaConverters._
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.Random
 
 import cats.implicits._
-import cats.effect.{IO, Resource, Sync}
+import cats.effect.{ContextShift, IO, Resource, Sync}
 
 import com.google.cloud.bigtable.admin.v2.BigtableTableAdminClient
 import com.google.cloud.bigtable.admin.v2.models.CreateTableRequest
 import com.google.cloud.bigtable.data.v2.BigtableDataClient
-import com.google.cloud.bigtable.data.v2.models.RowMutation
+import com.google.cloud.bigtable.data.v2.models.{Row, RowCell, RowMutation}
+import com.google.protobuf.ByteString
 
 import com.precog.googleauth.ServiceAccount
 
 object BigTableSpecUtils {
+
+  final case class TestRow(key: String, cells: List[RowCell]) {
+    lazy val toRow: Row = Row.create(ByteString.copyFromUtf8(key), cells.asJava)
+
+    def toRowMutation(tableName: TableName): RowMutation =
+      cells.foldLeft(RowMutation.create(tableName.value, key)) { case (row, cell) =>
+        row.setCell(cell.getFamily(), cell.getQualifier(), cell.getTimestamp(), cell.getValue())
+      }
+  }
+
+  def mkRowCell(cf: String, qual: String, ts: Long, value: String): RowCell =
+    RowCell.create(cf, ByteString.copyFromUtf8(qual), ts * 1000L, List[String]().asJava, ByteString.copyFromUtf8(value))
+
+  implicit val ioContextShift: ContextShift[IO] =
+    IO.contextShift(global)
+
   implicit val ioMonadResourceErr: MonadError_[IO, ResourceError] =
     MonadError_.facet[IO](ResourceError.throwableP)
 
@@ -43,51 +62,34 @@ object BigTableSpecUtils {
   val PrecogTable = TableName("test-table")
   val ColumnFamily = "cf1"
 
-  def testConfig[F[_]: Sync]: F[Config] =
-    ServiceAccount.fromResourceName[F](AuthResourceName).map(Config(_, PrecogInstance, PrecogTable, RowPrefix("")))
+  def testConfig[F[_]: Sync](tableName: TableName, rowPrefix: RowPrefix): F[Config] =
+    ServiceAccount.fromResourceName[F](AuthResourceName).map(Config(_, PrecogInstance, tableName, rowPrefix))
 
-  def ensureTable(adminClient: BigtableTableAdminClient, tableId: String, columnFamily: String): IO[Boolean] =
+  def createTable(adminClient: BigtableTableAdminClient, table: TableName, columnFamilies: List[String]): IO[Unit] =
     IO {
-      if (!adminClient.exists(tableId)) {
-        val req = CreateTableRequest.of(tableId).addFamily(columnFamily)
-        adminClient.createTable(req)
-        true
-      } else {
-        false
-      }
+      val req =
+        columnFamilies.foldLeft(CreateTableRequest.of(table.value)) { case (rq, fam) =>
+          rq.addFamily(fam)
+        }
+      adminClient.createTable(req)
+      ()
     }
 
-  def table(adminClient: BigtableTableAdminClient): Resource[IO, (ResourcePath, String)] = {
-    val acq =
-      for {
-        tableName <- IO(s"src_spec_${Random.alphanumeric.take(6).mkString}")
-        fam = "cf1"
-        _ <- ensureTable(adminClient, tableName, fam)
-      } yield tableName
+  def table(adminClient: BigtableTableAdminClient, tableName: TableName, columnFamilies: List[String]): Resource[IO, Unit] =
+    Resource.make(
+      createTable(adminClient, tableName, columnFamilies))(
+      _ => IO(adminClient.deleteTable(tableName.value)))
 
-    Resource
-      .make(acq)(name => IO(adminClient.deleteTable(name)))
-      .map(n => (ResourcePath.root() / ResourceName(n), n))
-  }
-
-  def tableHarness(): Resource[IO, (GoogleBigTableDatasource[IO], BigtableTableAdminClient, BigtableDataClient, ResourcePath, String)] =
+  def tableHarness(rowPrefix: RowPrefix, columnFamilies: List[String]): Resource[IO, (GoogleBigTableDatasource[IO], BigtableTableAdminClient, BigtableDataClient, ResourcePath, TableName)] =
     for {
-      cfg <- Resource.liftF(testConfig[IO])
+      tableName <- Resource.liftF(IO(TableName(s"src_spec_${Random.alphanumeric.take(6).mkString}")))
+      cfg <- Resource.liftF(testConfig[IO](tableName, rowPrefix))
       admin <- GoogleBigTable.adminClient[IO](cfg)
       data <- GoogleBigTable.dataClient[IO](cfg)
       ds = new GoogleBigTableDatasource[IO](admin, data, cfg)
-      (path, name) <- table(admin)
-    } yield (ds, admin, data, path, name)
+      _ <- table(admin, tableName, columnFamilies)
+    } yield (ds, admin, data, ResourcePath.root() / ResourceName(tableName.value), tableName)
 
-  def writeToTable(dataClient: BigtableDataClient, tableId: String, columnFamily: String): IO[Unit] =
-    List("World", "Joe").zipWithIndex.traverse_ { p =>
-
-      val row =
-        RowMutation.create(tableId, s"rowKey${p._2}")
-          .setCell(columnFamily, "name", p._1)
-          .setCell(columnFamily, "greeting", s"Hey ${p._1}!")
-      IO.delay {
-        dataClient.mutateRow(row)
-      }
-    }
+  def writeToTable(dataClient: BigtableDataClient, rows: List[RowMutation]): IO[Unit] =
+    rows.traverse_(row => IO(dataClient.mutateRow(row)))
 }

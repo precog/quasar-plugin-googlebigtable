@@ -24,7 +24,7 @@ import cats.effect.{IO, Resource}
 import cats.effect.testing.specs2.CatsIO
 
 import com.google.cloud.bigtable.data.v2.BigtableDataClient
-import com.google.cloud.bigtable.data.v2.models.{Query, Row}
+import com.google.cloud.bigtable.data.v2.models.{Query => GQuery, Row, RowMutation}
 
 import org.specs2.mutable.Specification
 
@@ -34,20 +34,29 @@ import org.specs2.mutable.Specification
 class InitializeSpec extends Specification with CatsIO {
   import BigTableSpecUtils._
 
-  def read(dataClient: BigtableDataClient, tableId: String): IO[List[Row]] =
+  def read(dataClient: BigtableDataClient, table: TableName): IO[List[Row]] =
     IO.delay {
-      val query = Query.create(tableId)
+      val query = GQuery.create(table.value)
       dataClient.readRows(query).iterator.asScala.toList
     }
 
   "initialize" >> {
+    val tbl = TableName("some-table")
+    val in = List(
+      RowMutation.create(tbl.value, "rowKey1")
+        .setCell("cf1", "name", "Joe")
+        .setCell("cf1", "greeting", "Hey Joe!"),
+      RowMutation.create(tbl.value, "rowKey2")
+        .setCell("cf1", "name", "World")
+        .setCell("cf1", "greeting", "Hello World!"))
+
     for {
-      config <- Resource.liftF(testConfig[IO])
+      config <- Resource.liftF(testConfig[IO](tbl, RowPrefix("")))
       adminClient <- GoogleBigTable.adminClient[IO](config)
       dataClient <- GoogleBigTable.dataClient[IO](config)
-      (_, t) <- table(adminClient)
-      _ <- Resource.liftF(writeToTable(dataClient, t, ColumnFamily))
-      rows <- Resource.liftF(read(dataClient, t))
-    } yield (rows.size must be_===(2))
+      _ <- table(adminClient, tbl, List("cf1"))
+      _ <- Resource.liftF(writeToTable(dataClient, in))
+      out <- Resource.liftF(read(dataClient, tbl))
+    } yield (out.size must be_===(2))
   }
 }

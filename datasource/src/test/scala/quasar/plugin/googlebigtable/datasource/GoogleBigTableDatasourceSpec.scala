@@ -24,7 +24,7 @@ import fs2.Stream
 
 class GoogleBigTableDatasourceSpec extends DatasourceSpec[IO, Stream[IO, ?], ResourcePathType.Physical] {
 
-  import BigTableSpecUtils._
+  import BigTableSpecUtils.{ioContextShift => _, _}
 
   def mkDatasource(config: Config): Resource[IO, LightweightDatasourceModule.DS[IO]] =
     GoogleBigTableDatasource[IO](config)
@@ -32,7 +32,7 @@ class GoogleBigTableDatasourceSpec extends DatasourceSpec[IO, Stream[IO, ?], Res
   val nonExistentPath =
     ResourcePath.root() / ResourceName("does") / ResourceName("not") / ResourceName("exist")
 
-  val datasource = Resource.liftF(testConfig[IO]).flatMap(mkDatasource(_))
+  val datasource = Resource.liftF(testConfig[IO](PrecogTable, RowPrefix(""))).flatMap(mkDatasource(_))
 
   def gatherMultiple[A](g: Stream[IO, A]) = g.compile.toList
 

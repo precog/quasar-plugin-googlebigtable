@@ -20,23 +20,32 @@ import slamdata.Predef._
 
 import quasar.ScalarStages
 
-import cats.effect.{Resource, Sync}
+import cats.effect.{ConcurrentEffect, Resource}
 import cats.implicits._
-import fs2.Stream
+
 import com.google.cloud.bigtable.data.v2.BigtableDataClient
-import com.google.cloud.bigtable.data.v2.models.Row
+import com.google.cloud.bigtable.data.v2.{models => g}
 
-class Evaluator[F[_]: Sync](client: BigtableDataClient, tableName: TableName, offset: Any, stages: ScalarStages) {
+import fs2.Stream
 
-  def evaluate(): Resource[F, (ScalarStages, Stream[F, Row])] = {
-    val s = Stream.empty.covary[F].covaryOutput[Row]
+class Evaluator[F[_]: ConcurrentEffect](client: BigtableDataClient, tableName: TableName, offset: Any, stages: ScalarStages) {
+
+  def evaluate(): Resource[F, (ScalarStages, Stream[F, g.Row])] = {
+    val s = execQuery(Query(tableName, RowPrefix("")))
     Resource.liftF((stages, s).pure[F])
+  }
+
+  def execQuery(query: Query): Stream[F, g.Row] = {
+    val gquery = g.Query.create(query.tableName.value)
+    val handler = Observer.handler[F](client.readRowsAsync(gquery, _))
+    CallbackHandler.toStream[F, g.Row](handler, 50)
   }
 
 }
 
 object Evaluator {
 
-  def apply[F[_]: Sync](client: BigtableDataClient, tableName: TableName, offset: Any, stages: ScalarStages): Evaluator[F] =
+  def apply[F[_]: ConcurrentEffect](client: BigtableDataClient, tableName: TableName, offset: Any, stages: ScalarStages): Evaluator[F] =
     new Evaluator[F](client, tableName, offset, stages)
+
 }

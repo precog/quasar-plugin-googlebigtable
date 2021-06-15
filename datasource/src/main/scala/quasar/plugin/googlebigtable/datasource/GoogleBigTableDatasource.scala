@@ -40,7 +40,7 @@ import fs2.Stream
 import shims.equalToCats
 import skolems.∃
 
-final class GoogleBigTableDatasource[F[_]: Sync: MonadResourceErr](
+final class GoogleBigTableDatasource[F[_]: ConcurrentEffect: MonadResourceErr](
     adminClient: BigtableTableAdminClient,
     dataClient: BigtableDataClient,
     config: Config)
@@ -119,7 +119,7 @@ object GoogleBigTableDatasource {
 
   val DsType: DatasourceType = DatasourceType("googlebigtable", 1L)
 
-  def apply[F[_]: Sync: MonadResourceErr](
+  def apply[F[_]: ConcurrentEffect: MonadResourceErr](
       config: Config)
       : Resource[F, GoogleBigTableDatasource[F]] =
     Applicative[Resource[F, *]].map2(

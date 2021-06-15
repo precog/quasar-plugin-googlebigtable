@@ -23,7 +23,6 @@ import quasar.api.resource.{ResourceName, ResourcePath}
 import cats.effect.Sync
 import com.google.auth.oauth2.GoogleCredentials
 import com.precog.googleauth.{Credentials, ServiceAccount}
-import pathy.Path
 
 final case class TableName(value: String)
 
@@ -44,6 +43,5 @@ final case class Config(serviceAccount: ServiceAccount, instanceId: InstanceId, 
 
   val resourceName: ResourceName = ResourceName(tableName.value + rowPrefix.value)
 
-  val resourcePath: ResourcePath =
-    ResourcePath.leaf(Path.rootDir </> Path.file(resourceName.value))
+  val resourcePath: ResourcePath = ResourcePath.root() / resourceName
 }
