@@ -34,6 +34,7 @@ import com.google.cloud.bigtable.data.v2.models.Row
 
 import fs2.Stream
 
+import org.specs2.matcher.MatchResult
 import org.specs2.mutable.Specification
 
 class GoogleBigTableDatasourceEvaluateSpec extends Specification with CatsIO {
@@ -52,18 +53,59 @@ class GoogleBigTableDatasourceEvaluateSpec extends Specification with CatsIO {
       case _ => IO.pure(List[Row]())
     }
 
+  private def testTemplate(rowPrefix: RowPrefix, columnFamilies: List[String], rowsSetup: List[TestRow], expected: List[TestRow]): IO[MatchResult[List[Row]]] = {
+    harnessed(rowPrefix, columnFamilies) use { case (ds, adminClient, dataClient, path, tableName) =>
+      val setup = writeToTable(dataClient, rowsSetup.map(_.toRowMutation(tableName)))
+
+      (setup >> loadRows(ds, path)) map { results =>
+        val exp = expected.map(_.toRow)
+        results must containTheSameElementsAs(exp)
+      }
+    }
+  }
+
   "loading data" >> {
     "string" >> {
-      val cf = "cf1"
-      harnessed(RowPrefix(""), List(cf)) use { case (ds, adminClient, dataClient, path, tableName) =>
-        val rows = List(TestRow("rowKey1", List(mkRowCell(cf, "greeting", 1L, "Hey Joe!"))))
+      val cf1 = "cf1"
+      val cf2 = "cf2"
+      val row1 = TestRow("rowKey1", List(mkRowCell(cf1, "greeting", 1L, "Hello World")))
+      val row2 = TestRow("rowKey2", List(mkRowCell(cf1, "greeting", 3L, "Hey Joe!"), mkRowCell(cf1, "name", 2L, "Joe")))
+      val row3 = TestRow("rowKey3", List(mkRowCell(cf1, "greeting", 5L, "Bon Jour!"), mkRowCell(cf2, "name", 4L, "Jour")))
 
-        val setup = writeToTable(dataClient, rows.map(_.toRowMutation(tableName)))
+      "single row, single cell" >> {
+        val rows = List(row1)
+        testTemplate(RowPrefix(""), List(cf1), rows, rows)
+      }
 
-        (setup >> loadRows(ds, path)) map { results =>
-          val expected = rows.map(_.toRow)
-          results must containTheSameElementsAs(expected)
-        }
+      "single row, multiple cells in same family" >> {
+        val rows = List(row2)
+        testTemplate(RowPrefix(""), List(cf1), rows, rows)
+      }
+
+      "single row, multiple cells in different families" >> {
+        val rows = List(row3)
+        testTemplate(RowPrefix(""), List(cf1, cf2), rows, rows)
+      }
+
+      "multiple rows" >> {
+        val rows = List(row1, row2, row3)
+        testTemplate(RowPrefix(""), List(cf1, cf2), rows, rows)
+      }
+
+      "single row, matching prefix" >> {
+        val rows = List(row3)
+        testTemplate(RowPrefix("rowKey"), List(cf1, cf2), rows, rows)
+      }
+
+      "single row, non-matching prefix" >> {
+        val rows = List(row3)
+        testTemplate(RowPrefix("nope"), List(cf1, cf2), rows, List.empty)
+      }
+
+      "multiple rows, partly matching prefix" >> {
+        val rows = List(row1, row2, row3).flatMap(r => List(r, r.copy(key = "nope" + r.key), r.copy(key = r.key + "suffix")))
+        val expected = List(row1, row2, row3).flatMap(r => List(r, r.copy(key = r.key + "suffix")))
+        testTemplate(RowPrefix("rowKey"), List(cf1, cf2), rows, expected)
       }
     }
   }

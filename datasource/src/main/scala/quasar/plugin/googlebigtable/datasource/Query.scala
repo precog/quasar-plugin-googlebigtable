@@ -16,4 +16,11 @@
 
 package quasar.plugin.googlebigtable.datasource
 
-final case class Query(tableName: TableName, rowset: RowPrefix)
+import com.google.cloud.bigtable.data.v2.{models => g}
+
+final case class Query(tableName: TableName, rowPrefix: RowPrefix) {
+  lazy val googleQuery: g.Query =
+    g.Query
+      .create(tableName.value)
+      .prefix(rowPrefix.value)
+}

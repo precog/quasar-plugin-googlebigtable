@@ -18,34 +18,27 @@ package quasar.plugin.googlebigtable.datasource
 
 import slamdata.Predef._
 
-import quasar.ScalarStages
-
-import cats.effect.{ConcurrentEffect, Resource}
-import cats.implicits._
+import cats.effect.ConcurrentEffect
 
 import com.google.cloud.bigtable.data.v2.BigtableDataClient
-import com.google.cloud.bigtable.data.v2.{models => g}
+import com.google.cloud.bigtable.data.v2.models.Row
 
 import fs2.Stream
 
-class Evaluator[F[_]: ConcurrentEffect](client: BigtableDataClient, tableName: TableName, offset: Any, stages: ScalarStages) {
+class Evaluator[F[_]: ConcurrentEffect](client: BigtableDataClient, query: Query, maxQueueSize: Int) {
 
-  def evaluate(): Resource[F, (ScalarStages, Stream[F, g.Row])] = {
-    val s = execQuery(Query(tableName, RowPrefix("")))
-    Resource.liftF((stages, s).pure[F])
-  }
-
-  def execQuery(query: Query): Stream[F, g.Row] = {
-    val gquery = g.Query.create(query.tableName.value)
-    val handler = Observer.handler[F](client.readRowsAsync(gquery, _))
-    CallbackHandler.toStream[F, g.Row](handler, 50)
+  def evaluate(): Stream[F, Row] = {
+    val handler = Observer.handler[F](client.readRowsAsync(query.googleQuery, _))
+    CallbackHandler.toStream[F, Row](handler, maxQueueSize)
   }
 
 }
 
 object Evaluator {
 
-  def apply[F[_]: ConcurrentEffect](client: BigtableDataClient, tableName: TableName, offset: Any, stages: ScalarStages): Evaluator[F] =
-    new Evaluator[F](client, tableName, offset, stages)
+  val DefaultMaxQueueSize = 10
+
+  def apply[F[_]: ConcurrentEffect](client: BigtableDataClient, query: Query, maxQueueSize: Int): Evaluator[F] =
+    new Evaluator[F](client, query, maxQueueSize)
 
 }

@@ -60,7 +60,6 @@ object BigTableSpecUtils {
   val AuthResourceName = "precog-ci-275718-6d5ee6b82f02.json"
   val PrecogInstance = InstanceId("precog-test")
   val PrecogTable = TableName("test-table")
-  val ColumnFamily = "cf1"
 
   def testConfig[F[_]: Sync](tableName: TableName, rowPrefix: RowPrefix): F[Config] =
     ServiceAccount.fromResourceName[F](AuthResourceName).map(Config(_, PrecogInstance, tableName, rowPrefix))
@@ -88,7 +87,7 @@ object BigTableSpecUtils {
       data <- GoogleBigTable.dataClient[IO](cfg)
       ds = new GoogleBigTableDatasource[IO](admin, data, cfg)
       _ <- table(admin, tableName, columnFamilies)
-    } yield (ds, admin, data, ResourcePath.root() / ResourceName(tableName.value), tableName)
+    } yield (ds, admin, data, ResourcePath.root() / ResourceName(tableName.value + rowPrefix.value), tableName)
 
   def writeToTable(dataClient: BigtableDataClient, rows: List[RowMutation]): IO[Unit] =
     rows.traverse_(row => IO(dataClient.mutateRow(row)))

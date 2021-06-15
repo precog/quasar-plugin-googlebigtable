@@ -18,7 +18,6 @@ package quasar.plugin.googlebigtable.datasource
 
 import slamdata.Predef._
 
-import quasar.ScalarStages
 import quasar.api.DataPathSegment
 import quasar.api.datasource.DatasourceType
 import quasar.api.push.{InternalKey, OffsetPath}
@@ -73,21 +72,19 @@ final class GoogleBigTableDatasource[F[_]: ConcurrentEffect: MonadResourceErr](
       Resource[F, QueryResult[F]] = {
     val path = iRead.path
     val errored =
-      Resource.liftF(MonadResourceErr.raiseError(ResourceError.pathNotFound(path)))
+      MonadResourceErr.raiseError(ResourceError.pathNotFound(path))
 
-    val res: Resource[F, (ScalarStages, Stream[F, Row])] =
+    val rows: Stream[F, Row] =
       if (path === config.resourcePath)
         for {
-          off <- Resource.liftF(offset.traverse(mkOffset(path, _)))
-          res <- Evaluator[F](dataClient, config.tableName, off, iRead.stages).evaluate
+          off <- Stream.eval(offset.traverse(mkOffset(path, _)))
+          query = Query(config.tableName, config.rowPrefix)
+          res <- Evaluator[F](dataClient, query, Evaluator.DefaultMaxQueueSize).evaluate
         } yield res
       else
-        errored
+        Stream.eval(errored)
 
-    res.map {
-      case (stages, rows) =>
-        QueryResult.parsed(Decoder.qdataDecode, ResultData.Continuous(rows), stages)
-    }
+    QueryResult.parsed(Decoder.qdataDecode, ResultData.Continuous(rows), iRead.stages).pure[Resource[F, *]]
   }
 
   private def mkOffset(resourcePath: ResourcePath, offset: Offset): F[(String, ∃[InternalKey.Actual])] = {
