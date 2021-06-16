@@ -16,11 +16,33 @@
 
 package quasar.plugin.googlebigtable.datasource
 
-import com.google.cloud.bigtable.data.v2.{models => g}
+import slamdata.Predef._
 
-final case class Query(tableName: TableName, rowPrefix: RowPrefix) {
+import quasar.api.push.InternalKey
+
+import cats.Id
+import com.google.cloud.bigtable.data.v2.{models => g}, g.Range.ByteStringRange
+import skolems.∃
+
+final case class Query(tableName: TableName, rowPrefix: RowPrefix, offset: Option[(String, ∃[InternalKey.Actual])]) {
   lazy val googleQuery: g.Query =
-    g.Query
-      .create(tableName.value)
-      .prefix(rowPrefix.value)
+     g.Query
+        .create(tableName.value)
+        .range(getRange)
+
+  private def getRange: ByteStringRange = {
+    val r = ByteStringRange.prefix(rowPrefix.value)
+    val rangeStart = offset.flatMap(off => extractRangeStart(off._2)).map(s => rowPrefix.value + s)
+    rangeStart.fold(r)(rs => r.startClosed(rs))
+  }
+
+  private def extractRangeStart(key: ∃[InternalKey.Actual]): Option[String] = {
+    val actual: InternalKey[Id, _] = key.value
+
+    actual match {
+      case InternalKey.StringKey(s) => Some(s)
+      case _ => None
+    }
+  }
+
 }

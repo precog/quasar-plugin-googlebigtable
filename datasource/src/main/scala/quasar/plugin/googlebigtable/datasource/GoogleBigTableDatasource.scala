@@ -78,7 +78,7 @@ final class GoogleBigTableDatasource[F[_]: ConcurrentEffect: MonadResourceErr](
       if (path === config.resourcePath)
         for {
           off <- Stream.eval(offset.traverse(mkOffset(path, _)))
-          query = Query(config.tableName, config.rowPrefix)
+          query = Query(config.tableName, config.rowPrefix, off)
           res <- Evaluator[F](dataClient, query, Evaluator.DefaultMaxQueueSize).evaluate
         } yield res
       else

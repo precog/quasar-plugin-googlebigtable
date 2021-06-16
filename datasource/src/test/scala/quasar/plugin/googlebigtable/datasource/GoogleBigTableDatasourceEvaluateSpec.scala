@@ -19,11 +19,13 @@ package quasar.plugin.googlebigtable.datasource
 import slamdata.Predef._
 
 import quasar.ScalarStages
+import quasar.api.DataPathSegment
+import quasar.api.push.InternalKey
 import quasar.api.resource.ResourcePath
-import quasar.connector.{QueryResult, ResourceError}
-import quasar.contrib.scalaz.MonadError_
+import quasar.connector.{Offset, QueryResult}
 import quasar.qscript.InterpretedRead
 
+import cats.data.NonEmptyList
 import cats.effect.{IO, Resource}
 import cats.effect.testing.specs2.CatsIO
 import cats.implicits._
@@ -36,6 +38,8 @@ import fs2.Stream
 
 import org.specs2.matcher.MatchResult
 import org.specs2.mutable.Specification
+
+import skolems.∃
 
 class GoogleBigTableDatasourceEvaluateSpec extends Specification with CatsIO {
 
@@ -53,11 +57,30 @@ class GoogleBigTableDatasourceEvaluateSpec extends Specification with CatsIO {
       case _ => IO.pure(List[Row]())
     }
 
+  private def seekRows(ds: GoogleBigTableDatasource[IO], p: ResourcePath, offset: Offset): IO[List[Row]] =
+    ds.loadFrom(InterpretedRead(p, ScalarStages.Id), offset).value use {
+      case Some(QueryResult.Parsed(_, res, _)) =>
+        res.data.asInstanceOf[Stream[IO, Row]].compile.to(List)
+
+      case _ => IO.pure(List[Row]())
+    }
+
   private def testTemplate(rowPrefix: RowPrefix, columnFamilies: List[String], rowsSetup: List[TestRow], expected: List[TestRow]): IO[MatchResult[List[Row]]] = {
     harnessed(rowPrefix, columnFamilies) use { case (ds, adminClient, dataClient, path, tableName) =>
       val setup = writeToTable(dataClient, rowsSetup.map(_.toRowMutation(tableName)))
 
       (setup >> loadRows(ds, path)) map { results =>
+        val exp = expected.map(_.toRow)
+        results must containTheSameElementsAs(exp)
+      }
+    }
+  }
+
+  private def testTemplateSeek(offset: Offset, rowPrefix: RowPrefix, columnFamilies: List[String], rowsSetup: List[TestRow], expected: List[TestRow]): IO[MatchResult[List[Row]]] = {
+    harnessed(rowPrefix, columnFamilies) use { case (ds, adminClient, dataClient, path, tableName) =>
+      val setup = writeToTable(dataClient, rowsSetup.map(_.toRowMutation(tableName)))
+
+      (setup >> seekRows(ds, path, offset)) map { results =>
         val exp = expected.map(_.toRow)
         results must containTheSameElementsAs(exp)
       }
@@ -109,9 +132,26 @@ class GoogleBigTableDatasourceEvaluateSpec extends Specification with CatsIO {
       }
     }
   }
-}
 
-object GoogleBigTableDatasourceEvaluateSpec {
-  implicit val ioMonadResourceErr: MonadError_[IO, ResourceError] =
-    MonadError_.facet[IO](ResourceError.throwableP)
+  "seeking data" >> {
+    "string rowKey" >> {
+      val cf1 = "cf1"
+      val before = TestRow("before", List(mkRowCell(cf1, "a", 1L, "oops")))
+      val after = TestRow("zafter", List(mkRowCell(cf1, "a", 1L, "nope")))
+      val row1 = TestRow("rowKey1", List(mkRowCell(cf1, "a", 1L, "foo")))
+      val row2 = TestRow("rowKey2", List(mkRowCell(cf1, "a", 3L, "bar")))
+      val row3 = TestRow("rowKey3", List(mkRowCell(cf1, "a", 5L, "baz")))
+
+      def offset(s: String) =
+        Offset.Internal(NonEmptyList.one(DataPathSegment.Field("key")), ∃(InternalKey.Actual.string(s)))
+
+      "with prefix" >> {
+        testTemplateSeek(offset("2"), RowPrefix("rowKey"), List(cf1), List(before, after, row1, row2, row3), List(row2, row3))
+      }
+
+      "without prefix" >> {
+        testTemplateSeek(offset("rowKey2"), RowPrefix(""), List(cf1), List(before, after, row1, row2, row3), List(row2, row3, after))
+      }
+    }
+  }
 }
