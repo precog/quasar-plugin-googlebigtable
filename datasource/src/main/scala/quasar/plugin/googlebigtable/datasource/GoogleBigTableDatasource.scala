@@ -22,6 +22,7 @@ import quasar.api.DataPathSegment
 import quasar.api.datasource.DatasourceType
 import quasar.api.push.{InternalKey, OffsetPath}
 import quasar.api.resource._, ResourcePath._
+import quasar.common.data.{QDataRValue, RValue}
 import quasar.connector._
 import quasar.connector.datasource.{BatchLoader, LightweightDatasource, Loader}
 import quasar.qscript.InterpretedRead
@@ -33,7 +34,6 @@ import cats.implicits._
 
 import com.google.cloud.bigtable.admin.v2.BigtableTableAdminClient
 import com.google.cloud.bigtable.data.v2.BigtableDataClient
-import com.google.cloud.bigtable.data.v2.models.Row
 
 import fs2.Stream
 import shims.equalToCats
@@ -74,7 +74,7 @@ final class GoogleBigTableDatasource[F[_]: ConcurrentEffect: MonadResourceErr](
     val errored =
       MonadResourceErr.raiseError(ResourceError.pathNotFound(path))
 
-    val rows: Stream[F, Row] =
+    val rows: Stream[F, RValue] =
       if (path === config.resourcePath)
         for {
           off <- Stream.eval(offset.traverse(mkOffset(path, _)))
@@ -84,7 +84,7 @@ final class GoogleBigTableDatasource[F[_]: ConcurrentEffect: MonadResourceErr](
       else
         Stream.eval(errored)
 
-    QueryResult.parsed(Decoder.qdataDecode, ResultData.Continuous(rows), iRead.stages).pure[Resource[F, *]]
+    QueryResult.parsed(QDataRValue, ResultData.Continuous(rows), iRead.stages).pure[Resource[F, *]]
   }
 
   private def mkOffset(resourcePath: ResourcePath, offset: Offset): F[(String, ∃[InternalKey.Actual])] = {

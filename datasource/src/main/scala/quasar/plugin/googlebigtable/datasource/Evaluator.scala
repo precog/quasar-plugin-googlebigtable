@@ -18,18 +18,23 @@ package quasar.plugin.googlebigtable.datasource
 
 import slamdata.Predef._
 
+import quasar.common.data.{CLong, CString, RObject, RValue}
+
+import scala.collection.JavaConverters._
+
 import cats.effect.ConcurrentEffect
 
 import com.google.cloud.bigtable.data.v2.BigtableDataClient
-import com.google.cloud.bigtable.data.v2.models.Row
+import com.google.cloud.bigtable.data.v2.models.{Row, RowCell}
 
 import fs2.Stream
 
 class Evaluator[F[_]: ConcurrentEffect](client: BigtableDataClient, query: Query, maxQueueSize: Int) {
+  import Evaluator._
 
-  def evaluate(): Stream[F, Row] = {
+  def evaluate(): Stream[F, RValue] = {
     val handler = Observer.handler[F](client.readRowsAsync(query.googleQuery, _))
-    CallbackHandler.toStream[F, Row](handler, maxQueueSize)
+    CallbackHandler.toStream[F, Row](handler, maxQueueSize).map(toRValue(_))
   }
 
 }
@@ -41,4 +46,19 @@ object Evaluator {
   def apply[F[_]: ConcurrentEffect](client: BigtableDataClient, query: Query, maxQueueSize: Int): Evaluator[F] =
     new Evaluator[F](client, query, maxQueueSize)
 
+  def toRValue(row: Row): RValue = {
+    val values: Map[String, Map[String, RValue]] = row.getCells.asScala.toList.foldLeft(Map.empty[String, Map[String, RValue]]) { case (m, cell) =>
+      m + ((cell.getFamily(), m.getOrElse(cell.getFamily(), Map.empty[String, RValue]) + rowCellToRObjectEntry(cell)))
+    }
+    RObject(row.getKey().toStringUtf8() -> RObject(values.mapValues(RObject(_))))
+  }
+
+  private def rowCellToRObjectEntry(rowCell: RowCell): (String, RValue) = {
+    val rv = RObject(
+      "value" -> CString(rowCell.getValue.toStringUtf8),
+      // TODO support labels?
+      //"labels" -> RArray(rowCell.getLabels().asScala.map(CString(_)).toList),
+      "timestamp" -> CLong(rowCell.getTimestamp()))
+    (rowCell.getQualifier.toStringUtf8, rv)
+  }
 }

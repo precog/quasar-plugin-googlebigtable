@@ -70,7 +70,7 @@ class GoogleBigTableDatasourceEvaluateSpec extends Specification with CatsIO {
       val setup = writeToTable(dataClient, rowsSetup.map(_.toRowMutation(tableName)))
 
       (setup >> loadRows(ds, path)) map { results =>
-        val exp = expected.map(_.toRow)
+        val exp = expected.map(tr => Evaluator.toRValue(tr.toRow))
         results must containTheSameElementsAs(exp)
       }
     }
@@ -81,7 +81,7 @@ class GoogleBigTableDatasourceEvaluateSpec extends Specification with CatsIO {
       val setup = writeToTable(dataClient, rowsSetup.map(_.toRowMutation(tableName)))
 
       (setup >> seekRows(ds, path, offset)) map { results =>
-        val exp = expected.map(_.toRow)
+        val exp = expected.map(tr => Evaluator.toRValue(tr.toRow))
         results must containTheSameElementsAs(exp)
       }
     }
