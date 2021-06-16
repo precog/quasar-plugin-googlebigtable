@@ -27,7 +27,6 @@ import quasar.qscript.InterpretedRead
 
 import cats.data.NonEmptyList
 import cats.effect.{IO, Resource}
-import cats.effect.testing.specs2.CatsIO
 import cats.implicits._
 
 import com.google.cloud.bigtable.admin.v2.BigtableTableAdminClient
@@ -41,9 +40,9 @@ import org.specs2.mutable.Specification
 
 import skolems.∃
 
-class GoogleBigTableDatasourceEvaluateSpec extends Specification with CatsIO {
+class GoogleBigTableDatasourceEvaluateSpec extends Specification with DsIO {
 
-  import BigTableSpecUtils._
+  import DsIO._
 
   private def harnessed(rowPrefix: RowPrefix, columnFamilies: List[String])
       : Resource[IO, (GoogleBigTableDatasource[IO], BigtableTableAdminClient, BigtableDataClient, ResourcePath, TableName)] =

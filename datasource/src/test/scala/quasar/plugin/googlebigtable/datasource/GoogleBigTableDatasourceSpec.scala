@@ -24,7 +24,10 @@ import fs2.Stream
 
 class GoogleBigTableDatasourceSpec extends DatasourceSpec[IO, Stream[IO, ?], ResourcePathType.Physical] {
 
-  import BigTableSpecUtils.{ioContextShift => _, _}
+  // some trickery since `extends DatasourceSpec with DsIO`
+  // results in implicits that cannot be found
+  val dsIO : DsIO = new DsIO {}
+  import dsIO.{ioContextShift => _, ioTimer => _, _}
 
   def mkDatasource(config: Config): Resource[IO, LightweightDatasourceModule.DS[IO]] =
     GoogleBigTableDatasource[IO](config)

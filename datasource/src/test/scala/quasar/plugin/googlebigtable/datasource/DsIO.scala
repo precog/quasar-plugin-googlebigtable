@@ -27,7 +27,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.Random
 
 import cats.implicits._
-import cats.effect.{ContextShift, IO, Resource, Sync}
+import cats.effect.{IO, Resource, Sync}
 
 import com.google.cloud.bigtable.admin.v2.BigtableTableAdminClient
 import com.google.cloud.bigtable.admin.v2.models.CreateTableRequest
@@ -36,26 +36,18 @@ import com.google.cloud.bigtable.data.v2.models.{Row, RowCell, RowMutation}
 import com.google.protobuf.ByteString
 
 import com.precog.googleauth.ServiceAccount
+import scala.concurrent.ExecutionContext
+import cats.effect.testing.specs2.CatsIO
 
-object BigTableSpecUtils {
+trait DsIO extends CatsIO {
 
-  final case class TestRow(key: String, cells: List[RowCell]) {
-    lazy val toRow: Row = Row.create(ByteString.copyFromUtf8(key), cells.asJava)
-
-    def toRowMutation(tableName: TableName): RowMutation =
-      cells.foldLeft(RowMutation.create(tableName.value, key)) { case (row, cell) =>
-        row.setCell(cell.getFamily(), cell.getQualifier(), cell.getTimestamp(), cell.getValue())
-      }
-  }
-
-  def mkRowCell(cf: String, qual: String, ts: Long, value: String, labels: List[String] = List.empty): RowCell =
-    RowCell.create(cf, ByteString.copyFromUtf8(qual), ts * 1000L, /*TODO support labels? labels.asJava*/ List.empty.asJava, ByteString.copyFromUtf8(value))
-
-  implicit val ioContextShift: ContextShift[IO] =
-    IO.contextShift(global)
+  implicit val ec: ExecutionContext = global
 
   implicit val ioMonadResourceErr: MonadError_[IO, ResourceError] =
     MonadError_.facet[IO](ResourceError.throwableP)
+
+  def mkRowCell(cf: String, qual: String, ts: Long, value: String, labels: List[String] = List.empty): RowCell =
+    RowCell.create(cf, ByteString.copyFromUtf8(qual), ts * 1000L, /*TODO support labels? labels.asJava*/ List.empty.asJava, ByteString.copyFromUtf8(value))
 
   val AuthResourceName = "precog-ci-275718-6d5ee6b82f02.json"
   val PrecogInstance = InstanceId("precog-test")
@@ -91,4 +83,15 @@ object BigTableSpecUtils {
 
   def writeToTable(dataClient: BigtableDataClient, rows: List[RowMutation]): IO[Unit] =
     rows.traverse_(row => IO(dataClient.mutateRow(row)))
+}
+
+object DsIO {
+  final case class TestRow(key: String, cells: List[RowCell]) {
+    lazy val toRow: Row = Row.create(ByteString.copyFromUtf8(key), cells.asJava)
+
+    def toRowMutation(tableName: TableName): RowMutation =
+      cells.foldLeft(RowMutation.create(tableName.value, key)) { case (row, cell) =>
+        row.setCell(cell.getFamily(), cell.getQualifier(), cell.getTimestamp(), cell.getValue())
+      }
+  }
 }

@@ -34,7 +34,16 @@ final case class Config(serviceAccount: ServiceAccount, instanceId: InstanceId, 
 
   val Scope = "https://www.googleapis.com/auth/cloud-platform"
 
-  def sanitize: Config = this
+  def sanitize: Config = copy(serviceAccount = ServiceAccount.SanitizedAuth)
+
+  def isSensitive: Boolean = serviceAccount != ServiceAccount.EmptyAuth
+
+  def reconfigureNonSensitive(patch: Config): Either[Config, Config] =
+    if (patch.isSensitive)
+      Left(patch.sanitize)
+    else
+      Right(patch.copy(
+        serviceAccount = serviceAccount))
 
   def instancePath: String = s"projects/${serviceAccount.projectId}/instances/$instanceId"
 

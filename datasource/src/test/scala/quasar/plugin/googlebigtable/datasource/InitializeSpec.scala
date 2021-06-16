@@ -21,7 +21,6 @@ import slamdata.Predef._
 import scala.collection.JavaConverters._
 
 import cats.effect.{IO, Resource}
-import cats.effect.testing.specs2.CatsIO
 
 import com.google.cloud.bigtable.data.v2.BigtableDataClient
 import com.google.cloud.bigtable.data.v2.models.{Query => GQuery, Row, RowMutation}
@@ -31,8 +30,7 @@ import org.specs2.mutable.Specification
 /**
   * Initializes a test instance, given that it is created and running.
   */
-class InitializeSpec extends Specification with CatsIO {
-  import BigTableSpecUtils._
+class InitializeSpec extends Specification with DsIO {
 
   def read(dataClient: BigtableDataClient, table: TableName): IO[List[Row]] =
     IO.delay {

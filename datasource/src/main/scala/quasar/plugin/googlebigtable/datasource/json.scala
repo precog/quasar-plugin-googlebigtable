@@ -16,9 +16,21 @@
 
 package quasar.plugin.googlebigtable.datasource
 
-import argonaut._ //, Argonaut._
+import slamdata.Predef._
+
+import argonaut._, Argonaut._
 
 object json {
 
-  implicit val codecConfig: CodecJson[Config] = scala.Predef.???
+  implicit val codecInstanceId: CodecJson[InstanceId] =
+    CodecJson.derived[String].xmap(InstanceId(_))(_.value)
+
+  implicit val codecTableName: CodecJson[TableName] =
+    CodecJson.derived[String].xmap(TableName(_))(_.value)
+
+  implicit val codecRowPrefix: CodecJson[RowPrefix] =
+    CodecJson.derived[String].xmap(RowPrefix(_))(_.value)
+
+  implicit val codecConfig: CodecJson[Config] =
+    casecodec4(Config.apply, Config.unapply)("auth", "instance", "table", "rowPrefix")
 }

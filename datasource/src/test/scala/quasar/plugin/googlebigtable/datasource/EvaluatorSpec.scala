@@ -22,8 +22,9 @@ import quasar.common.data.{CLong, CString, RObject}
 
 import org.specs2.mutable.Specification
 
-object EvaluatorSpec extends Specification {
-  import BigTableSpecUtils._
+object EvaluatorSpec extends Specification with DsIO {
+
+  import DsIO._
 
   "toRValue" >> {
 
