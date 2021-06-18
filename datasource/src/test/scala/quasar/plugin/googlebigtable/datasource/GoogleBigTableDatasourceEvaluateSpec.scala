@@ -22,6 +22,7 @@ import quasar.ScalarStages
 import quasar.api.DataPathSegment
 import quasar.api.push.InternalKey
 import quasar.api.resource.ResourcePath
+import quasar.common.data.RValue
 import quasar.connector.{Offset, QueryResult}
 import quasar.qscript.InterpretedRead
 
@@ -31,7 +32,6 @@ import cats.implicits._
 
 import com.google.cloud.bigtable.admin.v2.BigtableTableAdminClient
 import com.google.cloud.bigtable.data.v2.BigtableDataClient
-import com.google.cloud.bigtable.data.v2.models.Row
 
 import fs2.Stream
 
@@ -48,23 +48,23 @@ class GoogleBigTableDatasourceEvaluateSpec extends Specification with DsIO {
       : Resource[IO, (GoogleBigTableDatasource[IO], BigtableTableAdminClient, BigtableDataClient, ResourcePath, TableName)] =
     tableHarness(rowPrefix, columnFamilies)
 
-  private def loadRows(ds: GoogleBigTableDatasource[IO], p: ResourcePath): IO[List[Row]] =
+  private def loadRows(ds: GoogleBigTableDatasource[IO], p: ResourcePath): IO[List[RValue]] =
     ds.loadFull(InterpretedRead(p, ScalarStages.Id)).value use {
       case Some(QueryResult.Parsed(_, res, _)) =>
-        res.data.asInstanceOf[Stream[IO, Row]].compile.to(List)
+        res.data.asInstanceOf[Stream[IO, RValue]].compile.to(List)
 
-      case _ => IO.pure(List[Row]())
+      case _ => IO.pure(List[RValue]())
     }
 
-  private def seekRows(ds: GoogleBigTableDatasource[IO], p: ResourcePath, offset: Offset): IO[List[Row]] =
+  private def seekRows(ds: GoogleBigTableDatasource[IO], p: ResourcePath, offset: Offset): IO[List[RValue]] =
     ds.loadFrom(InterpretedRead(p, ScalarStages.Id), offset).value use {
       case Some(QueryResult.Parsed(_, res, _)) =>
-        res.data.asInstanceOf[Stream[IO, Row]].compile.to(List)
+        res.data.asInstanceOf[Stream[IO, RValue]].compile.to(List)
 
-      case _ => IO.pure(List[Row]())
+      case _ => IO.pure(List[RValue]())
     }
 
-  private def testTemplate(rowPrefix: RowPrefix, columnFamilies: List[String], rowsSetup: List[TestRow], expected: List[TestRow]): IO[MatchResult[List[Row]]] = {
+  private def testTemplate(rowPrefix: RowPrefix, columnFamilies: List[String], rowsSetup: List[TestRow], expected: List[TestRow]): IO[MatchResult[List[RValue]]] = {
     harnessed(rowPrefix, columnFamilies) use { case (ds, adminClient, dataClient, path, tableName) =>
       val setup = writeToTable(dataClient, rowsSetup.map(_.toRowMutation(tableName)))
 
@@ -75,7 +75,7 @@ class GoogleBigTableDatasourceEvaluateSpec extends Specification with DsIO {
     }
   }
 
-  private def testTemplateSeek(offset: Offset, rowPrefix: RowPrefix, columnFamilies: List[String], rowsSetup: List[TestRow], expected: List[TestRow]): IO[MatchResult[List[Row]]] = {
+  private def testTemplateSeek(offset: Offset, rowPrefix: RowPrefix, columnFamilies: List[String], rowsSetup: List[TestRow], expected: List[TestRow]): IO[MatchResult[List[RValue]]] = {
     harnessed(rowPrefix, columnFamilies) use { case (ds, adminClient, dataClient, path, tableName) =>
       val setup = writeToTable(dataClient, rowsSetup.map(_.toRowMutation(tableName)))
 
@@ -145,7 +145,7 @@ class GoogleBigTableDatasourceEvaluateSpec extends Specification with DsIO {
         Offset.Internal(NonEmptyList.one(DataPathSegment.Field("key")), ∃(InternalKey.Actual.string(s)))
 
       "with prefix" >> {
-        testTemplateSeek(offset("2"), RowPrefix("rowKey"), List(cf1), List(before, after, row1, row2, row3), List(row2, row3))
+        testTemplateSeek(offset("rowKey2"), RowPrefix("rowKey"), List(cf1), List(before, after, row1, row2, row3), List(row2, row3))
       }
 
       "without prefix" >> {

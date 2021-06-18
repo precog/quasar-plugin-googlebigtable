@@ -32,7 +32,7 @@ final case class Query(tableName: TableName, rowPrefix: RowPrefix, offset: Optio
 
   private def getRange: ByteStringRange = {
     val r = ByteStringRange.prefix(rowPrefix.value)
-    val rangeStart = offset.flatMap(off => extractRangeStart(off)).map(s => rowPrefix.value + s)
+    val rangeStart = offset.flatMap(off => extractRangeStart(off))
     rangeStart.fold(r)(rs => r.startClosed(rs))
   }
 
