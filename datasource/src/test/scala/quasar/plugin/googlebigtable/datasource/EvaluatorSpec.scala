@@ -43,14 +43,16 @@ object EvaluatorSpec extends Specification with DsIO {
       mkRowCell("cf2", "e", 5L, "yo", List("l2"))))
 
     "simple" >> {
-      Evaluator.toRValue(row.toRow) must_== RObject(Map("rowKey1" -> RObject(Map(
-        "cf1" -> RObject(
-          "a" -> mkValTsLabelsRObject("foo", 1000L, List("l1", "l2")),
-          "b" -> mkValTsLabelsRObject("bar", 2000L)),
-        "cf2" -> RObject(
-          "c" -> mkValTsLabelsRObject("baz", 3000L, List("l3")),
-          "d" -> mkValTsLabelsRObject("ok", 4000L, List("l1")),
-          "e" -> mkValTsLabelsRObject("yo", 5000L, List("l2")))))))
+      Evaluator.toRValue(row.toRow) must_== RObject(Map(
+        "key" -> CString("rowKey1"),
+        "cells" -> RObject(Map(
+          "cf1" -> RObject(
+            "a" -> mkValTsLabelsRObject("foo", 1000L, List("l1", "l2")),
+            "b" -> mkValTsLabelsRObject("bar", 2000L)),
+          "cf2" -> RObject(
+            "c" -> mkValTsLabelsRObject("baz", 3000L, List("l3")),
+            "d" -> mkValTsLabelsRObject("ok", 4000L, List("l1")),
+            "e" -> mkValTsLabelsRObject("yo", 5000L, List("l2")))))))
     }
   }
 }

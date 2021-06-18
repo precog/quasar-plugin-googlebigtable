@@ -24,7 +24,7 @@ import cats.Id
 import com.google.cloud.bigtable.data.v2.{models => g}, g.Range.ByteStringRange
 import skolems.∃
 
-final case class Query(tableName: TableName, rowPrefix: RowPrefix, offset: Option[(String, ∃[InternalKey.Actual])]) {
+final case class Query(tableName: TableName, rowPrefix: RowPrefix, offset: Option[∃[InternalKey.Actual]]) {
   lazy val googleQuery: g.Query =
      g.Query
         .create(tableName.value)
@@ -32,7 +32,7 @@ final case class Query(tableName: TableName, rowPrefix: RowPrefix, offset: Optio
 
   private def getRange: ByteStringRange = {
     val r = ByteStringRange.prefix(rowPrefix.value)
-    val rangeStart = offset.flatMap(off => extractRangeStart(off._2)).map(s => rowPrefix.value + s)
+    val rangeStart = offset.flatMap(off => extractRangeStart(off)).map(s => rowPrefix.value + s)
     rangeStart.fold(r)(rs => r.startClosed(rs))
   }
 

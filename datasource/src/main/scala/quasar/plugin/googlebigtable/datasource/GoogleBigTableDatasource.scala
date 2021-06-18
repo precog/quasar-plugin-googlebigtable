@@ -87,15 +87,16 @@ final class GoogleBigTableDatasource[F[_]: ConcurrentEffect: MonadResourceErr](
     QueryResult.parsed(QDataRValue, ResultData.Continuous(rows), iRead.stages).pure[Resource[F, *]]
   }
 
-  private def mkOffset(resourcePath: ResourcePath, offset: Offset): F[(String, ∃[InternalKey.Actual])] = {
-    def ensurePath(path: OffsetPath): F[String] =
+  private def mkOffset(resourcePath: ResourcePath, offset: Offset): F[∃[InternalKey.Actual]] = {
+    def ensurePath(path: OffsetPath): F[Unit] =
       path match {
-        case NonEmptyList(DataPathSegment.Field(s), List()) =>
-          s.pure[F]
-        case _ =>
+        case NonEmptyList(DataPathSegment.Field("key"), List()) =>
+          ().pure[F]
+        case p =>
+          val s = p.map(_.show).mkString_("")
           MonadResourceErr.raiseError(ResourceError.seekFailed(
               resourcePath,
-              "Unsupported offset path"))
+              s"Unsupported offset path '$s'"))
       }
 
     for {
@@ -106,8 +107,8 @@ final class GoogleBigTableDatasource[F[_]: ConcurrentEffect: MonadResourceErr](
             resourcePath,
             "External offsets are not supported"))
       }
-      p <- ensurePath(internalOffset.path)
-    } yield (p, internalOffset.value)
+      _ <- ensurePath(internalOffset.path)
+    } yield (internalOffset.value)
   }
 
 }

@@ -50,7 +50,9 @@ object Evaluator {
     val values: Map[String, Map[String, RValue]] = row.getCells.asScala.toList.foldLeft(Map.empty[String, Map[String, RValue]]) { case (m, cell) =>
       m + ((cell.getFamily(), m.getOrElse(cell.getFamily(), Map.empty[String, RValue]) + rowCellToRObjectEntry(cell)))
     }
-    RObject(row.getKey().toStringUtf8() -> RObject(values.mapValues(RObject(_))))
+    RObject(
+      "key" -> CString(row.getKey().toStringUtf8()),
+      "cells" -> RObject(values.mapValues(RObject(_))))
   }
 
   private def rowCellToRObjectEntry(rowCell: RowCell): (String, RValue) = {

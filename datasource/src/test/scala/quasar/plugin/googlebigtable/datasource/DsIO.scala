@@ -79,7 +79,8 @@ trait DsIO extends CatsIO {
       data <- GoogleBigTable.dataClient[IO](cfg)
       ds = new GoogleBigTableDatasource[IO](admin, data, cfg)
       _ <- table(admin, tableName, columnFamilies)
-    } yield (ds, admin, data, ResourcePath.root() / ResourceName(tableName.value + rowPrefix.value), tableName)
+      resName = ResourceName(tableName.value + rowPrefix.resourceNamePart)
+    } yield (ds, admin, data, ResourcePath.root() / resName, tableName)
 
   def writeToTable(dataClient: BigtableDataClient, rows: List[RowMutation]): IO[Unit] =
     rows.traverse_(row => IO(dataClient.mutateRow(row)))

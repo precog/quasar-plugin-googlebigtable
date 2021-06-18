@@ -28,7 +28,10 @@ final case class TableName(value: String)
 
 final case class InstanceId(value: String)
 
-final case class RowPrefix(value: String)
+final case class RowPrefix(value: String) {
+  def resourceNamePart: String =
+    if (value.isEmpty) "" else "-" + value
+}
 
 final case class Config(serviceAccount: ServiceAccount, instanceId: InstanceId, tableName: TableName, rowPrefix: RowPrefix) {
 
@@ -50,7 +53,7 @@ final case class Config(serviceAccount: ServiceAccount, instanceId: InstanceId, 
   def credentials[F[_]: Sync]: F[GoogleCredentials] =
     Credentials.googleCredentials(serviceAccount.serviceAccountAuthBytes, Scope)
 
-  val resourceName: ResourceName = ResourceName(tableName.value + rowPrefix.value)
+  val resourceName: ResourceName = ResourceName(tableName.value + rowPrefix.resourceNamePart)
 
   val resourcePath: ResourcePath = ResourcePath.root() / resourceName
 }
