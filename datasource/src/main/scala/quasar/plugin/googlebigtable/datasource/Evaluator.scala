@@ -25,15 +25,15 @@ import scala.collection.JavaConverters._
 import cats.effect.ConcurrentEffect
 
 import com.google.cloud.bigtable.data.v2.BigtableDataClient
-import com.google.cloud.bigtable.data.v2.models.{Row, RowCell}
+import com.google.cloud.bigtable.data.v2.models.{Query => GQuery, Row, RowCell}
 
 import fs2.Stream
 
-class Evaluator[F[_]: ConcurrentEffect](client: BigtableDataClient, query: Query, maxQueueSize: Int) {
+class Evaluator[F[_]: ConcurrentEffect](client: BigtableDataClient, query: GQuery, maxQueueSize: Int) {
   import Evaluator._
 
   def evaluate(): Stream[F, RValue] = {
-    val handler = Observer.handler[F](client.readRowsAsync(query.googleQuery, _))
+    val handler = Observer.handler[F](client.readRowsAsync(query, _))
     CallbackHandler.toStream[F, Row](handler, maxQueueSize).map(toRValue(_))
   }
 
@@ -43,7 +43,7 @@ object Evaluator {
 
   val DefaultMaxQueueSize = 10
 
-  def apply[F[_]: ConcurrentEffect](client: BigtableDataClient, query: Query, maxQueueSize: Int): Evaluator[F] =
+  def apply[F[_]: ConcurrentEffect](client: BigtableDataClient, query: GQuery, maxQueueSize: Int): Evaluator[F] =
     new Evaluator[F](client, query, maxQueueSize)
 
   def toRValue(row: Row): RValue = {

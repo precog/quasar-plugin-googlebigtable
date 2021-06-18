@@ -36,10 +36,12 @@ import com.google.cloud.bigtable.admin.v2.BigtableTableAdminClient
 import com.google.cloud.bigtable.data.v2.BigtableDataClient
 
 import fs2.Stream
+import io.chrisdavenport.log4cats.SelfAwareStructuredLogger
 import shims.equalToCats
 import skolems.∃
 
 final class GoogleBigTableDatasource[F[_]: ConcurrentEffect: MonadResourceErr](
+    log: SelfAwareStructuredLogger[F],
     adminClient: BigtableTableAdminClient,
     dataClient: BigtableDataClient,
     config: Config)
@@ -78,7 +80,8 @@ final class GoogleBigTableDatasource[F[_]: ConcurrentEffect: MonadResourceErr](
       if (path === config.resourcePath)
         for {
           off <- Stream.eval(offset.traverse(mkOffset(path, _)))
-          query = Query(config.tableName, config.rowPrefix, off)
+          query = Query(config.tableName, config.rowPrefix, off).googleQuery
+          _ <- Stream.eval(log.debug(s"Executing query: $query"))
           res <- Evaluator[F](dataClient, query, Evaluator.DefaultMaxQueueSize).evaluate
         } yield res
       else
@@ -118,9 +121,10 @@ object GoogleBigTableDatasource {
   val DsType: DatasourceType = DatasourceType("googlebigtable", 1L)
 
   def apply[F[_]: ConcurrentEffect: MonadResourceErr](
+      log: SelfAwareStructuredLogger[F],
       config: Config)
       : Resource[F, GoogleBigTableDatasource[F]] =
     Applicative[Resource[F, *]].map2(
       GoogleBigTable.adminClient(config), GoogleBigTable.dataClient(config))(
-      new GoogleBigTableDatasource(_, _, config))
+      new GoogleBigTableDatasource(log, _, _, config))
 }

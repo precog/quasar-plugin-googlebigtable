@@ -32,6 +32,8 @@ import argonaut._, Argonaut._
 import cats.effect._
 import cats.kernel.Hash
 import cats.implicits._
+import io.chrisdavenport.log4cats.SelfAwareStructuredLogger
+import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
 import scalaz.NonEmptyList
 
 object GoogleBigTableDatasourceModule extends LightweightDatasourceModule {
@@ -79,10 +81,13 @@ object GoogleBigTableDatasourceModule extends LightweightDatasourceModule {
       byteStore: ByteStore[F],
       auth: UUID => F[Option[ExternalCredentials[F]]])(
       implicit ec: ExecutionContext)
-      : Resource[F, Either[InitializationError[Json], LightweightDatasourceModule.DS[F]]] =
+      : Resource[F, Either[InitializationError[Json], LightweightDatasourceModule.DS[F]]] = {
+
+    val log: SelfAwareStructuredLogger[F] = Slf4jLogger.getLoggerFromName("quasar.datasource.googlebigtable")
+
     config.as[Config].result match {
       case Right(cfg) =>
-        GoogleBigTableDatasource(cfg)
+        GoogleBigTableDatasource(log, cfg)
           .map(_.asRight)
 
       case Left((msg, _)) =>
@@ -91,4 +96,5 @@ object GoogleBigTableDatasourceModule extends LightweightDatasourceModule {
           .asLeft[LightweightDatasourceModule.DS[F]]
           .pure[Resource[F, ?]]
     }
+  }
 }

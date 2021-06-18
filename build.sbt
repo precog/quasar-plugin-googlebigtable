@@ -41,14 +41,15 @@ lazy val datasource = project
 
     quasarPluginDependencies ++= Seq(
       "com.precog" %% "precog-google-auth" % precogGoogleAuthVersion,
-      "com.google.cloud.bigtable" % "bigtable-hbase-1.x" % bigTableVersion
+      "com.google.cloud.bigtable" % "bigtable-hbase-1.x" % bigTableVersion,
+      "io.chrisdavenport" %% "log4cats-slf4j" % "1.1.1"
     ),
 
     libraryDependencies ++= Seq(
-      "com.precog" %% "quasar-foundation"   % managedVersions.value("precog-quasar") % Test classifier "tests",
+      "com.precog" %% "quasar-foundation" % managedVersions.value("precog-quasar") % Test classifier "tests",
       "org.specs2" %% "specs2-core" % specs2Version % Test,
-      "org.specs2"             %% "specs2-scalacheck"   % specs2Version % Test,
-      "org.specs2"             %% "specs2-scalaz"       % specs2Version % Test,
+      "org.specs2" %% "specs2-scalacheck" % specs2Version % Test,
+      "org.specs2" %% "specs2-scalaz" % specs2Version % Test,
       "com.codecommit" %% "cats-effect-testing-specs2" % catsEffectTestingSpecs2Version % Test,
       "org.apache.logging.log4j" % "log4j-core" % log4jVersion % Test,
       "org.apache.logging.log4j" % "log4j-slf4j-impl" % log4jVersion % Test

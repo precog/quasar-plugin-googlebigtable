@@ -21,6 +21,8 @@ import quasar.connector.datasource.{DatasourceSpec, LightweightDatasourceModule}
 
 import cats.effect.{IO, Resource}
 import fs2.Stream
+import io.chrisdavenport.log4cats.SelfAwareStructuredLogger
+import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
 
 class GoogleBigTableDatasourceSpec extends DatasourceSpec[IO, Stream[IO, ?], ResourcePathType.Physical] {
 
@@ -29,8 +31,10 @@ class GoogleBigTableDatasourceSpec extends DatasourceSpec[IO, Stream[IO, ?], Res
   val dsIO : DsIO = new DsIO {}
   import dsIO.{ioContextShift => _, ioTimer => _, _}
 
+  val log: SelfAwareStructuredLogger[IO] = Slf4jLogger.getLoggerFromName("GoogleBigTableDatasourceSpec")
+
   def mkDatasource(config: Config): Resource[IO, LightweightDatasourceModule.DS[IO]] =
-    GoogleBigTableDatasource[IO](config)
+    GoogleBigTableDatasource[IO](log, config)
 
   val nonExistentPath =
     ResourcePath.root() / ResourceName("does") / ResourceName("not") / ResourceName("exist")

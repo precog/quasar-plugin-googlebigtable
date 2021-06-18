@@ -38,6 +38,7 @@ import com.google.protobuf.ByteString
 import com.precog.googleauth.ServiceAccount
 import scala.concurrent.ExecutionContext
 import cats.effect.testing.specs2.CatsIO
+import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
 
 trait DsIO extends CatsIO {
 
@@ -77,7 +78,8 @@ trait DsIO extends CatsIO {
       cfg <- Resource.liftF(testConfig[IO](tableName, rowPrefix))
       admin <- GoogleBigTable.adminClient[IO](cfg)
       data <- GoogleBigTable.dataClient[IO](cfg)
-      ds = new GoogleBigTableDatasource[IO](admin, data, cfg)
+      log = Slf4jLogger.getLoggerFromName[IO]("Test")
+      ds = new GoogleBigTableDatasource[IO](log, admin, data, cfg)
       _ <- table(admin, tableName, columnFamilies)
       resName = ResourceName(tableName.value + rowPrefix.resourceNamePart)
     } yield (ds, admin, data, ResourcePath.root() / resName, tableName)
