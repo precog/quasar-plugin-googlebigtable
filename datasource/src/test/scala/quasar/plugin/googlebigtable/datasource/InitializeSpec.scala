@@ -23,7 +23,7 @@ import scala.collection.JavaConverters._
 import cats.effect.{IO, Resource}
 
 import com.google.cloud.bigtable.data.v2.BigtableDataClient
-import com.google.cloud.bigtable.data.v2.models.{Query => GQuery, Row, RowMutation}
+import com.google.cloud.bigtable.data.v2.models.{Query => GQuery, Row}
 
 import org.specs2.mutable.Specification
 
@@ -31,6 +31,11 @@ import org.specs2.mutable.Specification
   * Initializes a test instance, given that it is created and running.
   */
 class InitializeSpec extends Specification with DsIO {
+
+  import DsIO._
+
+  // whether the table gets dropped after execution
+  val Cleanup = true
 
   def read(dataClient: BigtableDataClient, table: TableName): IO[List[Row]] =
     IO.delay {
@@ -40,21 +45,29 @@ class InitializeSpec extends Specification with DsIO {
 
   "initialize" >> {
     val tbl = TableName("some-table")
-    val in = List(
-      RowMutation.create(tbl.value, "rowKey1")
-        .setCell("cf1", "name", "Joe")
-        .setCell("cf1", "greeting", "Hey Joe!"),
-      RowMutation.create(tbl.value, "rowKey2")
-        .setCell("cf1", "name", "World")
-        .setCell("cf1", "greeting", "Hello World!"))
+
+    def mkRow(key: String, i: Int) = TestRow(f"$key#$i%05d", List(
+      mkRowCell("cf1", "a", 1L, key + "v1"),
+      mkRowCell("cf1", "b", 2L, key + "v2"),
+      mkRowCell("cf2", "c", 3L, key + "v3"),
+      mkRowCell("cf2", "d", 4L, key + "v4"),
+      mkRowCell("cf2", "e", 5L, key + "v5")))
+
+    def mkRows(rows: Int, start: Int) =
+      List.range(start, rows + start).map(mkRow("before", _)) ++
+        List.range(start, rows + start).map(mkRow("zafter", _)) ++
+          List.range(start, rows + start).map(mkRow("row", _))
+
+    val nr = 3
+    val in = mkRows(nr, 0).map(_.toRowMutation(tbl))
 
     for {
       config <- Resource.liftF(testConfig[IO](tbl, RowPrefix("")))
       adminClient <- GoogleBigTable.adminClient[IO](config)
       dataClient <- GoogleBigTable.dataClient[IO](config)
-      _ <- table(adminClient, tbl, List("cf1"))
+      _ <- table(adminClient, tbl, List("cf1", "cf2"), cleanup = Cleanup)
       _ <- Resource.liftF(writeToTable(dataClient, in))
       out <- Resource.liftF(read(dataClient, tbl))
-    } yield (out.size must be_===(2))
+    } yield (out.size must be_===(nr * 3))
   }
 }

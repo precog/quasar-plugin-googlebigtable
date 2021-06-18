@@ -67,10 +67,10 @@ trait DsIO extends CatsIO {
       ()
     }
 
-  def table(adminClient: BigtableTableAdminClient, tableName: TableName, columnFamilies: List[String]): Resource[IO, Unit] =
+  def table(adminClient: BigtableTableAdminClient, tableName: TableName, columnFamilies: List[String], cleanup: Boolean = true): Resource[IO, Unit] =
     Resource.make(
       createTable(adminClient, tableName, columnFamilies))(
-      _ => IO(adminClient.deleteTable(tableName.value)))
+      _ => if (cleanup) IO(adminClient.deleteTable(tableName.value)) else ().pure[IO])
 
   def tableHarness(rowPrefix: RowPrefix, columnFamilies: List[String]): Resource[IO, (GoogleBigTableDatasource[IO], BigtableTableAdminClient, BigtableDataClient, ResourcePath, TableName)] =
     for {

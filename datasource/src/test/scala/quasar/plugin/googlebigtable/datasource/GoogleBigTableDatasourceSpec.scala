@@ -48,4 +48,9 @@ class GoogleBigTableDatasourceSpec extends DatasourceSpec[IO, Stream[IO, ?], Res
     datasource.flatMap(_.pathIsResource(res)).use(b => IO.pure(b must beTrue))
   }
 
+  "an actual table with row prefix is a resource" >>* {
+    val ds = Resource.liftF(testConfig[IO](PrecogTable, RowPrefix("row#123#r"))).flatMap(mkDatasource(_))
+    val res = ResourcePath.root() / ResourceName("test-table-row123r")
+    ds.flatMap(_.pathIsResource(res)).use(b => IO.pure(b must beTrue))
+  }
 }

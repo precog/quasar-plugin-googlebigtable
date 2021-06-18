@@ -20,6 +20,8 @@ import slamdata.Predef._
 
 import quasar.api.resource.{ResourceName, ResourcePath}
 
+import scala.StringContext
+
 import cats.effect.Sync
 import com.google.auth.oauth2.GoogleCredentials
 import com.precog.googleauth.{Credentials, ServiceAccount}
@@ -29,8 +31,10 @@ final case class TableName(value: String)
 final case class InstanceId(value: String)
 
 final case class RowPrefix(value: String) {
-  def resourceNamePart: String =
-    if (value.isEmpty) "" else "-" + value
+  private lazy val cleaned = """(\W)""".r.replaceAllIn(value, "")
+
+  lazy val resourceNamePart: String =
+    if (cleaned.isEmpty) "" else "-" + cleaned
 }
 
 final case class Config(serviceAccount: ServiceAccount, instanceId: InstanceId, tableName: TableName, rowPrefix: RowPrefix) {
