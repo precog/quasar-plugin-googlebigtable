@@ -28,31 +28,29 @@ object EvaluatorSpec extends Specification with DsIO {
 
   "toRValue" >> {
 
-    def mkValTsLabelsRObject(value: String, ts: Long, ls: List[String] = List.empty) =
+    def mkValTsRObject(value: String, ts: Long) =
       RObject(
         "value" -> CString(value),
-        // TODO support labels?
-        // "labels" -> RArray(ls.map(CString(_))),
         "timestamp" -> CLong(ts))
 
     val row = TestRow("rowKey1", List(
-      mkRowCell("cf1", "a", 1L, "foo", List("l1", "l2")),
+      mkRowCell("cf1", "a", 1L, "foo"),
       mkRowCell("cf1", "b", 2L, "bar"),
-      mkRowCell("cf2", "c", 3L, "baz", List("l3")),
-      mkRowCell("cf2", "d", 4L, "ok", List("l1")),
-      mkRowCell("cf2", "e", 5L, "yo", List("l2"))))
+      mkRowCell("cf2", "c", 3L, "baz"),
+      mkRowCell("cf2", "d", 4L, "ok"),
+      mkRowCell("cf2", "e", 5L, "yo")))
 
     "simple" >> {
       Evaluator.toRValue(row.toRow) must_== RObject(Map(
         "key" -> CString("rowKey1"),
         "cells" -> RObject(Map(
           "cf1" -> RObject(
-            "a" -> mkValTsLabelsRObject("foo", 1000L, List("l1", "l2")),
-            "b" -> mkValTsLabelsRObject("bar", 2000L)),
+            "a" -> mkValTsRObject("foo", 1000L),
+            "b" -> mkValTsRObject("bar", 2000L)),
           "cf2" -> RObject(
-            "c" -> mkValTsLabelsRObject("baz", 3000L, List("l3")),
-            "d" -> mkValTsLabelsRObject("ok", 4000L, List("l1")),
-            "e" -> mkValTsLabelsRObject("yo", 5000L, List("l2")))))))
+            "c" -> mkValTsRObject("baz", 3000L),
+            "d" -> mkValTsRObject("ok", 4000L),
+            "e" -> mkValTsRObject("yo", 5000L))))))
     }
   }
 }

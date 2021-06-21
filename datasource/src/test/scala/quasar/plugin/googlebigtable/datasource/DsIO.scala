@@ -47,8 +47,8 @@ trait DsIO extends CatsIO {
   implicit val ioMonadResourceErr: MonadError_[IO, ResourceError] =
     MonadError_.facet[IO](ResourceError.throwableP)
 
-  def mkRowCell(cf: String, qual: String, ts: Long, value: String, labels: List[String] = List.empty): RowCell =
-    RowCell.create(cf, ByteString.copyFromUtf8(qual), ts * 1000L, /*TODO support labels? labels.asJava*/ List.empty.asJava, ByteString.copyFromUtf8(value))
+  def mkRowCell(cf: String, qual: String, ts: Long, value: String): RowCell =
+    RowCell.create(cf, ByteString.copyFromUtf8(qual), ts * 1000L, List.empty.asJava, ByteString.copyFromUtf8(value))
 
   val AuthResourceName = "precog-ci-275718-6d5ee6b82f02.json"
   val PrecogInstance = InstanceId("precog-test")

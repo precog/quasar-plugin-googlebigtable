@@ -59,8 +59,6 @@ object Evaluator {
   private def rowCellToRObjectEntry(rowCell: RowCell): (String, RValue) = {
     val rv = RObject(
       "value" -> CString(rowCell.getValue.toStringUtf8),
-      // TODO support labels?
-      //"labels" -> RArray(rowCell.getLabels().asScala.map(CString(_)).toList),
       "timestamp" -> CLong(rowCell.getTimestamp()))
     (rowCell.getQualifier.toStringUtf8, rv)
   }
