@@ -84,7 +84,7 @@ trait DsIO extends CatsIO {
       admin <- GoogleBigTable.adminClient[IO](cfg)
       data <- GoogleBigTable.dataClient[IO](cfg)
       log = Slf4jLogger.getLoggerFromName[IO]("Test")
-      ds = new GoogleBigTableDatasource[IO](log, admin, data, cfg)
+      ds = new GoogleBigTableDatasource[IO](log, data, cfg)
       _ <- table(admin, tableName, columnFamilies)
       resName = ResourceName(tableName.value + rowPrefix.resourceNamePart)
     } yield (ds, admin, data, ResourcePath.root() / resName, tableName)

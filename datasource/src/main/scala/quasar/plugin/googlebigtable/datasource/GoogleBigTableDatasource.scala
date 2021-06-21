@@ -27,12 +27,10 @@ import quasar.connector._
 import quasar.connector.datasource.{BatchLoader, LightweightDatasource, Loader}
 import quasar.qscript.InterpretedRead
 
-import cats.Applicative
 import cats.data.NonEmptyList
 import cats.effect._
 import cats.implicits._
 
-import com.google.cloud.bigtable.admin.v2.BigtableTableAdminClient
 import com.google.cloud.bigtable.data.v2.BigtableDataClient
 
 import fs2.Stream
@@ -42,7 +40,6 @@ import skolems.∃
 
 final class GoogleBigTableDatasource[F[_]: ConcurrentEffect: MonadResourceErr](
     log: SelfAwareStructuredLogger[F],
-    adminClient: BigtableTableAdminClient,
     dataClient: BigtableDataClient,
     config: Config)
     extends LightweightDatasource[Resource[F, ?], Stream[F, ?], QueryResult[F]] {
@@ -124,7 +121,6 @@ object GoogleBigTableDatasource {
       log: SelfAwareStructuredLogger[F],
       config: Config)
       : Resource[F, GoogleBigTableDatasource[F]] =
-    Applicative[Resource[F, *]].map2(
-      GoogleBigTable.adminClient(config), GoogleBigTable.dataClient(config))(
-      new GoogleBigTableDatasource(log, _, _, config))
+    GoogleBigTable.dataClient(config).map(
+      new GoogleBigTableDatasource(log, _, config))
 }
