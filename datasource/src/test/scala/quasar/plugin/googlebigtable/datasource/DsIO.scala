@@ -54,8 +54,13 @@ trait DsIO extends CatsIO {
   val PrecogInstance = InstanceId("precog-test")
   val PrecogTable = TableName("test-table")
 
+  def serviceAccount[F[_]: Sync]: F[ServiceAccount] =
+    ServiceAccount.fromResourceName[F](AuthResourceName)
+
+  lazy val runITs = serviceAccount[IO].attempt.unsafeRunSync.isRight
+
   def testConfig[F[_]: Sync](tableName: TableName, rowPrefix: RowPrefix): F[Config] =
-    ServiceAccount.fromResourceName[F](AuthResourceName).map(Config(_, PrecogInstance, tableName, rowPrefix))
+    serviceAccount.map(Config(_, PrecogInstance, tableName, rowPrefix))
 
   def createTable(adminClient: BigtableTableAdminClient, table: TableName, columnFamilies: List[String]): IO[Unit] =
     IO {

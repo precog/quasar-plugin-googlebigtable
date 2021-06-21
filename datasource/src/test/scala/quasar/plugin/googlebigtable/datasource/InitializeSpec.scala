@@ -34,6 +34,8 @@ class InitializeSpec extends Specification with DsIO {
 
   import DsIO._
 
+  skipAllIf(!runITs)
+
   // whether the table gets dropped after execution
   val Cleanup = true
 

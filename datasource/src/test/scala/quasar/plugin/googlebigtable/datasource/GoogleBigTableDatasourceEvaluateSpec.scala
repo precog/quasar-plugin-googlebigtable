@@ -44,6 +44,8 @@ class GoogleBigTableDatasourceEvaluateSpec extends Specification with DsIO {
 
   import DsIO._
 
+  skipAllIf(!runITs)
+
   private def harnessed(rowPrefix: RowPrefix, columnFamilies: List[String])
       : Resource[IO, (GoogleBigTableDatasource[IO], BigtableTableAdminClient, BigtableDataClient, ResourcePath, TableName)] =
     tableHarness(rowPrefix, columnFamilies)

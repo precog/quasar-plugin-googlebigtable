@@ -31,6 +31,8 @@ class GoogleBigTableDatasourceSpec extends DatasourceSpec[IO, Stream[IO, ?], Res
   val dsIO : DsIO = new DsIO {}
   import dsIO.{ioContextShift => _, ioTimer => _, _}
 
+  skipAllIf(!runITs)
+
   val log: SelfAwareStructuredLogger[IO] = Slf4jLogger.getLoggerFromName("GoogleBigTableDatasourceSpec")
 
   def mkDatasource(config: Config): Resource[IO, LightweightDatasourceModule.DS[IO]] =

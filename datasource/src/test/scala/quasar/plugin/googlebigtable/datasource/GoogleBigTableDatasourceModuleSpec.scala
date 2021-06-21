@@ -36,6 +36,8 @@ import json._
 
 class GoogleBigTableDatasourceModuleSpec extends Specification with DsIO {
 
+  skipAllIf(!runITs)
+
   def mkDs(j: Json)
       : Resource[IO, Either[InitializationError[Json], DSM.DS[IO]]] =
     RateLimiter[IO, UUID](IO(UUID.randomUUID()))
