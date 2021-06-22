@@ -20,6 +20,7 @@ import slamdata.Predef._
 
 import quasar.common.data.{CLong, CString, RObject, RValue}
 
+import java.lang.Math
 import scala.collection.JavaConverters._
 
 import cats.effect.{ConcurrentEffect, Sync}
@@ -27,7 +28,7 @@ import cats.effect.{ConcurrentEffect, Sync}
 import com.google.api.gax.rpc.StreamController
 import com.google.api.gax.rpc.StateCheckingResponseObserver
 import com.google.cloud.bigtable.data.v2.BigtableDataClient
-import com.google.cloud.bigtable.data.v2.models.{Query => GQuery, Row, RowCell}
+import com.google.cloud.bigtable.data.v2.models.{Query => GQuery, Row}
 
 import fs2.Stream
 
@@ -48,19 +49,16 @@ object Evaluator {
     new Evaluator[F](client, query, maxQueueSize)
 
   def toRValue(row: Row): RValue = {
-    val values: Map[String, Map[String, RValue]] = row.getCells.asScala.toList.foldLeft(Map.empty[String, Map[String, RValue]]) { case (m, cell) =>
-      m + ((cell.getFamily(), m.getOrElse(cell.getFamily(), Map.empty[String, RValue]) + rowCellToRObjectEntry(cell)))
+    val (ts: Long, values: Map[String, Map[String, RValue]]) = row.getCells.asScala.toList.foldLeft((0L, Map.empty[String, Map[String, RValue]])) { case ((ts, m), cell) =>
+      val maxTs = Math.max(ts, cell.getTimestamp())
+      val entry = (cell.getQualifier.toStringUtf8, CString(cell.getValue.toStringUtf8))
+      val newMap = m + ((cell.getFamily(), m.getOrElse(cell.getFamily(), Map.empty[String, RValue]) + entry))
+      (maxTs, newMap)
     }
     RObject(
       "key" -> CString(row.getKey().toStringUtf8()),
+      "timestamp" -> CLong(ts),
       "cells" -> RObject(values.mapValues(RObject(_))))
-  }
-
-  private def rowCellToRObjectEntry(rowCell: RowCell): (String, RValue) = {
-    val rv = RObject(
-      "value" -> CString(rowCell.getValue.toStringUtf8),
-      "timestamp" -> CLong(rowCell.getTimestamp()))
-    (rowCell.getQualifier.toStringUtf8, rv)
   }
 
   class Observer[F[_]: Sync](callback: CallbackHandler.Callback[F, Row]) extends StateCheckingResponseObserver[Row] {

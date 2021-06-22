@@ -28,11 +28,6 @@ object EvaluatorSpec extends Specification with DsIO {
 
   "toRValue" >> {
 
-    def mkValTsRObject(value: String, ts: Long) =
-      RObject(
-        "value" -> CString(value),
-        "timestamp" -> CLong(ts))
-
     val row = TestRow("rowKey1", List(
       mkRowCell("cf1", "a", 1L, "foo"),
       mkRowCell("cf1", "b", 2L, "bar"),
@@ -43,14 +38,15 @@ object EvaluatorSpec extends Specification with DsIO {
     "simple" >> {
       Evaluator.toRValue(row.toRow) must_== RObject(Map(
         "key" -> CString("rowKey1"),
+        "timestamp" -> CLong(5000L),
         "cells" -> RObject(Map(
           "cf1" -> RObject(
-            "a" -> mkValTsRObject("foo", 1000L),
-            "b" -> mkValTsRObject("bar", 2000L)),
+            "a" -> CString("foo"),
+            "b" -> CString("bar")),
           "cf2" -> RObject(
-            "c" -> mkValTsRObject("baz", 3000L),
-            "d" -> mkValTsRObject("ok", 4000L),
-            "e" -> mkValTsRObject("yo", 5000L))))))
+            "c" -> CString("baz"),
+            "d" -> CString("ok"),
+            "e" -> CString("yo"))))))
     }
   }
 }
