@@ -38,7 +38,7 @@ object EvaluatorSpec extends Specification with DsIO {
     "simple" >> {
       Evaluator.toRValue(row.toRow) must_== RObject(Map(
         "key" -> CString("rowKey1"),
-        "timestamp" -> CLong(5000L),
+        "timestamp" -> CLong(5L),
         "cells" -> RObject(Map(
           "cf1" -> RObject(
             "a" -> CString("foo"),

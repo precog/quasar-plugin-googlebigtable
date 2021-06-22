@@ -53,7 +53,7 @@ object Evaluator {
       val maxTs = Math.max(ts, cell.getTimestamp())
       val entry = (cell.getQualifier.toStringUtf8, CString(cell.getValue.toStringUtf8))
       val newMap = m + ((cell.getFamily(), m.getOrElse(cell.getFamily(), Map.empty[String, RValue]) + entry))
-      (maxTs, newMap)
+      (maxTs / 1000, newMap)
     }
     RObject(
       "key" -> CString(row.getKey().toStringUtf8()),
