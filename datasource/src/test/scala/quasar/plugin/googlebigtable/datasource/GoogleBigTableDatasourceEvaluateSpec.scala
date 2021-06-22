@@ -166,7 +166,7 @@ class GoogleBigTableDatasourceEvaluateSpec extends Specification with DsIO {
       val row3 = TestRow("rowKey3", List(mkRowCell(cf1, "a", 2L, "baz"), mkRowCell(cf2, "b", 5L, "baz")))
 
       def offset(r: Real) =
-        Offset.Internal(NonEmptyList.one(DataPathSegment.Field("timestamp")), ∃(InternalKey.Actual.real(r * 1000)))
+        Offset.Internal(NonEmptyList.one(DataPathSegment.Field("timestamp")), ∃(InternalKey.Actual.real(r)))
 
       "with prefix" >> {
         testTemplateSeek(offset(Real(4)), RowPrefix("rowKey"), List(cf1, cf2), List(before, after, row1, row2, row3), List(row1, row3))

@@ -38,7 +38,7 @@ final case class Query(tableName: TableName, rowPrefix: RowPrefix, offset: Optio
           case Query.Timestamp =>
             extractRangeStartLong(key) match {
               case Some(l) =>
-                val pred = FILTERS.timestamp().range().startClosed(l).endUnbounded()
+                val pred = FILTERS.timestamp().range().startClosed(l * 1000).endUnbounded()
                 val filter = FILTERS.condition(pred).`then`(FILTERS.pass()).otherwise(FILTERS.block())
                 g.Query
                   .create(tableName.value)
