@@ -23,6 +23,7 @@ import quasar.api.resource.{ResourceName, ResourcePath}
 import scala.StringContext
 
 import cats.effect.Sync
+import cats.syntax.eq._
 import com.google.auth.oauth2.GoogleCredentials
 import com.precog.googleauth.{Credentials, ServiceAccount}
 
@@ -43,7 +44,7 @@ final case class Config(serviceAccount: ServiceAccount, instanceId: InstanceId, 
 
   def sanitize: Config = copy(serviceAccount = ServiceAccount.SanitizedAuth)
 
-  def isSensitive: Boolean = serviceAccount != ServiceAccount.EmptyAuth
+  def isSensitive: Boolean = serviceAccount =!= ServiceAccount.EmptyAuth
 
   def reconfigureNonSensitive(patch: Config): Either[Config, Config] =
     if (patch.isSensitive)
