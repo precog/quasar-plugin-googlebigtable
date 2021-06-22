@@ -39,6 +39,7 @@ import org.specs2.matcher.MatchResult
 import org.specs2.mutable.Specification
 
 import skolems.∃
+import spire.math.Real
 
 class GoogleBigTableDatasourceEvaluateSpec extends Specification with DsIO {
 
@@ -152,6 +153,27 @@ class GoogleBigTableDatasourceEvaluateSpec extends Specification with DsIO {
 
       "without prefix" >> {
         testTemplateSeek(offset("rowKey2"), RowPrefix(""), List(cf1), List(before, after, row1, row2, row3), List(row2, row3, after))
+      }
+    }
+
+    "number timestamp" >> {
+      val cf1 = "cf1"
+      val cf2 = "cf2"
+      val before = TestRow("before", List(mkRowCell(cf1, "a", 1L, "oops a"), mkRowCell(cf2, "b", 2L, "oops b")))
+      val after = TestRow("zafter", List(mkRowCell(cf1, "a", 1L, "nope a"), mkRowCell(cf2, "b", 10L, "nope b")))
+      val row1 = TestRow("rowKey1", List(mkRowCell(cf1, "a", 1L, "foo a"), mkRowCell(cf2, "b", 4L, "foo b")))
+      val row2 = TestRow("rowKey2", List(mkRowCell(cf1, "a", 2L, "bar"), mkRowCell(cf2, "b", 3L, "bar")))
+      val row3 = TestRow("rowKey3", List(mkRowCell(cf1, "a", 2L, "baz"), mkRowCell(cf2, "b", 5L, "baz")))
+
+      def offset(r: Real) =
+        Offset.Internal(NonEmptyList.one(DataPathSegment.Field("timestamp")), ∃(InternalKey.Actual.real(r * 1000)))
+
+      "with prefix" >> {
+        testTemplateSeek(offset(Real(4)), RowPrefix("rowKey"), List(cf1, cf2), List(before, after, row1, row2, row3), List(row1, row3))
+      }
+
+      "without prefix" >> {
+        testTemplateSeek(offset(Real(4)), RowPrefix(""), List(cf1, cf2), List(before, after, row1, row2, row3), List(row1, row3, after))
       }
     }
   }

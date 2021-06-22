@@ -18,25 +18,56 @@ package quasar.plugin.googlebigtable.datasource
 
 import slamdata.Predef._
 
-import quasar.api.push.InternalKey
+import quasar.api.DataPathSegment
+import quasar.api.push.{InternalKey, OffsetPath}
+
+import scala.Predef._
 
 import cats.Id
-import com.google.cloud.bigtable.data.v2.{models => g}, g.Range.ByteStringRange
+import cats.data.NonEmptyList
+import cats.implicits._
+import com.google.cloud.bigtable.data.v2.{models => g}, g.Filters.FILTERS, g.Range.ByteStringRange
+import monocle.Prism
 import skolems.∃
 
-final case class Query(tableName: TableName, rowPrefix: RowPrefix, offset: Option[∃[InternalKey.Actual]]) {
-  lazy val googleQuery: g.Query =
-     g.Query
-        .create(tableName.value)
-        .range(getRange)
+final case class Query(tableName: TableName, rowPrefix: RowPrefix, offset: Option[(Query.OffsetField, ∃[InternalKey.Actual])]) {
+  lazy val googleQuery: Either[String, g.Query] =
+    offset match {
+      case Some((field, key)) =>
+        field match {
+          case Query.Timestamp =>
+            extractRangeStartLong(key) match {
+              case Some(l) =>
+                val pred = FILTERS.timestamp().range().startClosed(l).endUnbounded()
+                val filter = FILTERS.condition(pred).`then`(FILTERS.pass()).otherwise(FILTERS.block())
+                g.Query
+                  .create(tableName.value)
+                  .filter(filter)
+                  .range(getPrefixRange)
+                  .asRight
+              case None => "Unexpected type for timestamp offset".asLeft
+            }
+          case Query.Key =>
+            extractRangeStartString(key) match {
+              case Some(s) =>
+                g.Query
+                  .create(tableName.value)
+                  .range(getPrefixRange.startClosed(s))
+                  .asRight
+              case None => "Unexpected type for key offset".asLeft
+            }
+        }
+      case None =>
+        g.Query
+          .create(tableName.value)
+          .range(getPrefixRange)
+          .asRight
+    }
 
-  private def getRange: ByteStringRange = {
-    val r = ByteStringRange.prefix(rowPrefix.value)
-    val rangeStart = offset.flatMap(off => extractRangeStart(off))
-    rangeStart.fold(r)(rs => r.startClosed(rs))
-  }
+  private def getPrefixRange: ByteStringRange =
+    ByteStringRange.prefix(rowPrefix.value)
 
-  private def extractRangeStart(key: ∃[InternalKey.Actual]): Option[String] = {
+  private def extractRangeStartString(key: ∃[InternalKey.Actual]): Option[String] = {
     val actual: InternalKey[Id, _] = key.value
 
     actual match {
@@ -44,5 +75,39 @@ final case class Query(tableName: TableName, rowPrefix: RowPrefix, offset: Optio
       case _ => None
     }
   }
+
+  private def extractRangeStartLong(key: ∃[InternalKey.Actual]): Option[Long] = {
+    val actual: InternalKey[Id, _] = key.value
+
+    actual match {
+      case InternalKey.RealKey(r) => Try(r.toLong).toOption
+      case _ => None
+    }
+  }
+}
+
+object Query {
+  trait OffsetField {
+    val name: String
+    def path(): OffsetPath =
+      NonEmptyList(DataPathSegment.Field(name), List())
+  }
+  case object Key extends OffsetField {
+    val name = "key"
+  }
+  case object Timestamp extends OffsetField {
+    val name = "timestamp"
+  }
+
+  private def fromName(name: String) = name match {
+    case Key.name => Key.some
+    case Timestamp.name => Timestamp.some
+  }
+
+  val offsetFieldPrism: Prism[OffsetPath, OffsetField] =
+    Prism[OffsetPath, OffsetField] {
+      case NonEmptyList(DataPathSegment.Field(name), List()) => fromName(name)
+      case _ => None
+    } (_.path())
 
 }

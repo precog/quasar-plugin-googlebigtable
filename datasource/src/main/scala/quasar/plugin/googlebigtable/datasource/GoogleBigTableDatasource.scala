@@ -18,7 +18,6 @@ package quasar.plugin.googlebigtable.datasource
 
 import slamdata.Predef._
 
-import quasar.api.DataPathSegment
 import quasar.api.datasource.DatasourceType
 import quasar.api.push.{InternalKey, OffsetPath}
 import quasar.api.resource._, ResourcePath._
@@ -32,6 +31,7 @@ import cats.effect._
 import cats.implicits._
 
 import com.google.cloud.bigtable.data.v2.BigtableDataClient
+import com.google.cloud.bigtable.data.v2.{models => g}
 
 import fs2.Stream
 import io.chrisdavenport.log4cats.SelfAwareStructuredLogger
@@ -77,7 +77,7 @@ final class GoogleBigTableDatasource[F[_]: ConcurrentEffect: MonadResourceErr](
       if (path === config.resourcePath)
         for {
           off <- Stream.eval(offset.traverse(mkOffset(path, _)))
-          query = Query(config.tableName, config.rowPrefix, off).googleQuery
+          query <- Stream.eval(mkGoogleQuery(path, Query(config.tableName, config.rowPrefix, off)))
           _ <- Stream.eval(log.debug(s"Executing query: $query"))
           res <- Evaluator[F](dataClient, query, Evaluator.DefaultMaxQueueSize).evaluate
         } yield res
@@ -87,16 +87,25 @@ final class GoogleBigTableDatasource[F[_]: ConcurrentEffect: MonadResourceErr](
     QueryResult.parsed(QDataRValue, ResultData.Continuous(rows), iRead.stages).pure[Resource[F, *]]
   }
 
-  private def mkOffset(resourcePath: ResourcePath, offset: Offset): F[∃[InternalKey.Actual]] = {
-    def ensurePath(path: OffsetPath): F[Unit] =
-      path match {
-        case NonEmptyList(DataPathSegment.Field("key"), List()) =>
-          ().pure[F]
-        case p =>
-          val s = p.map(_.show).mkString_("")
+  private def mkGoogleQuery(resourcePath: ResourcePath, query: Query): F[g.Query] =
+    query.googleQuery match {
+      case Right(gq) => gq.pure[F]
+      case Left(s) =>
+        MonadResourceErr.raiseError(ResourceError.seekFailed(
+          resourcePath,
+          s))
+    }
+
+  private def mkOffset(resourcePath: ResourcePath, offset: Offset): F[(Query.OffsetField, ∃[InternalKey.Actual])] = {
+    def ensurePath(path: OffsetPath): F[Query.OffsetField] =
+      Query.offsetFieldPrism.getOption(path) match {
+        case Some(f) =>
+          f.pure[F]
+        case None =>
+          val s = path.map(_.show).mkString_("")
           MonadResourceErr.raiseError(ResourceError.seekFailed(
-              resourcePath,
-              s"Unsupported offset path '$s'"))
+            resourcePath,
+            s"Unsupported offset path '$s'"))
       }
 
     for {
@@ -107,8 +116,8 @@ final class GoogleBigTableDatasource[F[_]: ConcurrentEffect: MonadResourceErr](
             resourcePath,
             "External offsets are not supported"))
       }
-      _ <- ensurePath(internalOffset.path)
-    } yield (internalOffset.value)
+      field <- ensurePath(internalOffset.path)
+    } yield (field, internalOffset.value)
   }
 
 }
