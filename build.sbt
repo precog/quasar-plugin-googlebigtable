@@ -40,7 +40,7 @@ lazy val datasource = project
     quasarPluginDatasourceFqcn := Some("quasar.plugin.googlebigtable.datasource.GoogleBigTableDatasourceModule$"),
 
     quasarPluginDependencies ++= Seq(
-      "com.precog" %% "precog-google-auth" % precogGoogleAuthVersion,
+      "com.precog" %% "precog-google-auth" % managedVersions.value("precog-precog-google-auth"),
       "com.google.cloud.bigtable" % "bigtable-hbase-1.x" % bigTableVersion,
       "io.chrisdavenport" %% "log4cats-slf4j" % "1.1.1"
     ),
