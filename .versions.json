@@ -1,3 +1,4 @@
 {
-  "precog-quasar": "207.0.0"
+  "precog-quasar": "207.0.0",
+  "precog-precog-google-auth": "0.0.1"
 }
