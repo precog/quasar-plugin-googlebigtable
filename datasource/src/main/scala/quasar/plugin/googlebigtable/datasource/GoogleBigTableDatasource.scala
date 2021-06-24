@@ -34,7 +34,7 @@ import com.google.cloud.bigtable.data.v2.BigtableDataClient
 import com.google.cloud.bigtable.data.v2.{models => g}
 
 import fs2.Stream
-import io.chrisdavenport.log4cats.SelfAwareStructuredLogger
+import org.typelevel.log4cats.SelfAwareStructuredLogger
 import shims.equalToCats
 import skolems.∃
 

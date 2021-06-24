@@ -21,8 +21,8 @@ import quasar.connector.datasource.{DatasourceSpec, LightweightDatasourceModule}
 
 import cats.effect.{IO, Resource}
 import fs2.Stream
-import io.chrisdavenport.log4cats.SelfAwareStructuredLogger
-import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
+import org.typelevel.log4cats.SelfAwareStructuredLogger
+import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 class GoogleBigTableDatasourceSpec extends DatasourceSpec[IO, Stream[IO, ?], ResourcePathType.Physical] {
 

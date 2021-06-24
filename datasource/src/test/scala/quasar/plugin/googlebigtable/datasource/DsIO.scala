@@ -38,7 +38,7 @@ import com.google.protobuf.ByteString
 import com.precog.googleauth.ServiceAccount
 import scala.concurrent.ExecutionContext
 import cats.effect.testing.specs2.CatsIO
-import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
+import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 trait DsIO extends CatsIO {
 
