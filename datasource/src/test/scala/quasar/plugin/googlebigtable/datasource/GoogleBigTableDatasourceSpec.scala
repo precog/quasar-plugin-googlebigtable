@@ -41,7 +41,7 @@ class GoogleBigTableDatasourceSpec extends DatasourceSpec[IO, Stream[IO, ?], Res
   val nonExistentPath =
     ResourcePath.root() / ResourceName("does") / ResourceName("not") / ResourceName("exist")
 
-  val datasource = Resource.liftF(testConfig[IO](PrecogTable, RowPrefix(""))).flatMap(mkDatasource(_))
+  val datasource = Resource.eval(testConfig[IO](PrecogTable, RowPrefix(""))).flatMap(mkDatasource(_))
 
   def gatherMultiple[A](g: Stream[IO, A]) = g.compile.toList
 
@@ -51,7 +51,7 @@ class GoogleBigTableDatasourceSpec extends DatasourceSpec[IO, Stream[IO, ?], Res
   }
 
   "an actual table with row prefix is a resource" >>* {
-    val ds = Resource.liftF(testConfig[IO](PrecogTable, RowPrefix("row#123#r"))).flatMap(mkDatasource(_))
+    val ds = Resource.eval(testConfig[IO](PrecogTable, RowPrefix("row#123#r"))).flatMap(mkDatasource(_))
     val res = ResourcePath.root() / ResourceName("test-table-row123r")
     ds.flatMap(_.pathIsResource(res)).use(b => IO.pure(b must beTrue))
   }

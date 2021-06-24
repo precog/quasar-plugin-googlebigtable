@@ -79,8 +79,8 @@ trait DsIO extends CatsIO {
 
   def tableHarness(rowPrefix: RowPrefix, columnFamilies: List[String]): Resource[IO, (GoogleBigTableDatasource[IO], BigtableTableAdminClient, BigtableDataClient, ResourcePath, TableName)] =
     for {
-      tableName <- Resource.liftF(IO(TableName(s"src_spec_${Random.alphanumeric.take(6).mkString}")))
-      cfg <- Resource.liftF(testConfig[IO](tableName, rowPrefix))
+      tableName <- Resource.eval(IO(TableName(s"src_spec_${Random.alphanumeric.take(6).mkString}")))
+      cfg <- Resource.eval(testConfig[IO](tableName, rowPrefix))
       admin <- GoogleBigTable.adminClient[IO](cfg)
       data <- GoogleBigTable.dataClient[IO](cfg)
       log = Slf4jLogger.getLoggerFromName[IO]("Test")

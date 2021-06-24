@@ -64,12 +64,12 @@ class InitializeSpec extends Specification with DsIO {
     val in = mkRows(nr, 0).map(_.toRowMutation(tbl))
 
     for {
-      config <- Resource.liftF(testConfig[IO](tbl, RowPrefix("")))
+      config <- Resource.eval(testConfig[IO](tbl, RowPrefix("")))
       adminClient <- GoogleBigTable.adminClient[IO](config)
       dataClient <- GoogleBigTable.dataClient[IO](config)
       _ <- table(adminClient, tbl, List("cf1", "cf2"), cleanup = Cleanup)
-      _ <- Resource.liftF(writeToTable(dataClient, in))
-      out <- Resource.liftF(read(dataClient, tbl))
+      _ <- Resource.eval(writeToTable(dataClient, in))
+      out <- Resource.eval(read(dataClient, tbl))
     } yield (out.size must be_===(nr * 3))
   }
 }
