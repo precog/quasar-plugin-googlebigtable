@@ -43,7 +43,7 @@ object GoogleBigTable {
     val acq =
       dataSettings(config)
         .flatMap(s => Sync[F].delay(BigtableDataClient.create(s)))
-    Resource.make(acq)(c => Sync[F].delay(c.close()))
+    Resource.fromAutoCloseable(acq)
   }
 
   def adminSettings[F[_]: Sync](config: Config): F[BigtableTableAdminSettings] =
@@ -65,6 +65,6 @@ object GoogleBigTable {
     val acq =
       adminSettings(config)
         .flatMap(s => Sync[F].delay(BigtableTableAdminClient.create(s)))
-    Resource.make(acq)(c => Sync[F].delay(c.close()))
+    Resource.fromAutoCloseable(acq)
   }
 }
