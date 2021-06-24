@@ -46,7 +46,7 @@ class GoogleBigTableDatasourceModuleSpec extends Specification with DsIO {
 
   "datasource init" >> {
     "succeeds when correct cfg" >> {
-      Resource.liftF(testConfig[IO](TableName("x"), RowPrefix("y")))
+      Resource.eval(testConfig[IO](TableName("x"), RowPrefix("y")))
         .flatMap(cfg => mkDs(cfg.asJson))
         .map(_ must beRight)
     }
