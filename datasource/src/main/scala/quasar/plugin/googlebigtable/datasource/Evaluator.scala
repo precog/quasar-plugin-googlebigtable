@@ -23,6 +23,7 @@ import quasar.common.data.{CLong, CString, RObject, RValue}
 import java.lang.Math
 import scala.collection.JavaConverters._
 
+import cats.implicits._
 import cats.effect.{ConcurrentEffect, Sync}
 
 import com.google.api.gax.rpc.StreamController
@@ -49,17 +50,26 @@ object Evaluator {
     new Evaluator[F](client, query, maxQueueSize)
 
   def toRValue(row: Row): RValue = {
-    val (ts: Long, values: Map[String, Map[String, RValue]]) = row.getCells.asScala.toList.foldLeft((0L, Map.empty[String, Map[String, RValue]])) { case ((ts, m), cell) =>
-      val maxTs = Math.max(ts, cell.getTimestamp())
-      val entry = (cell.getQualifier.toStringUtf8, CString(cell.getValue.toStringUtf8))
-      val newMap = m + ((cell.getFamily(), m.getOrElse(cell.getFamily(), Map.empty[String, RValue]) + entry))
-      (maxTs / 1000, newMap)
-    }
+    val (ts: Long, values: Map[String, Map[String, (Long, RValue)]]) =
+      row.getCells.asScala.toList.foldLeft((0L, Map.empty[String, Map[String, (Long, RValue)]])) { case ((ts, m), cell) =>
+        val entry = (cell.getQualifier.toStringUtf8, (cell.getTimestamp(), CString(cell.getValue.toStringUtf8)))
+        val fetchedValue = m.getOrElse(cell.getFamily(), Map.empty[String, (Long, RValue)]).get(cell.getQualifier.toStringUtf8)
+        val (tsw, entryToWrite) = toWrite(entry, fetchedValue)
+        val maxTs = Math.max(ts, tsw)
+        val newMap = entryToWrite.fold(m)(e => m + ((cell.getFamily(), m.getOrElse(cell.getFamily(), Map.empty[String, (Long, RValue)]) + e)))
+        (maxTs / 1000, newMap)
+      }
     RObject(
       "key" -> CString(row.getKey().toStringUtf8()),
       "timestamp" -> CLong(ts),
-      "cells" -> RObject(values.mapValues(RObject(_))))
+      "cells" -> RObject(values.mapValues(x => RObject(x.mapValues(_._2)))))
   }
+
+  private def toWrite(entry: (String, (Long, RValue)), fetched: Option[(Long, RValue)]): (Long, Option[(String, (Long, RValue))]) =
+    fetched.fold((entry._2._1, entry.some)) { f =>
+      if (f._1 >= entry._2._1) (f._1, none)
+      else (entry._2._1, entry.some)
+    }
 
   class Observer[F[_]: Sync](callback: CallbackHandler.Callback[F, Row]) extends StateCheckingResponseObserver[Row] {
 

@@ -48,5 +48,29 @@ object EvaluatorSpec extends Specification with DsIO {
             "d" -> CString("ok"),
             "e" -> CString("yo"))))))
     }
+
+    "takes last entry on duplicates" >> {
+
+      val row = TestRow("rowKey1", List(
+        mkRowCell("cf1", "a", 1L, "foo"),
+        mkRowCell("cf1", "a", 2L, "bar"),
+        mkRowCell("cf1", "a", 7L, "baz"),
+        mkRowCell("cf1", "a", 4L, "ok"),
+        mkRowCell("cf1", "a", 5L, "yo"),
+        mkRowCell("cf2", "a", 1L, "foo"),
+        mkRowCell("cf2", "a", 8L, "bar"),
+        mkRowCell("cf2", "a", 3L, "baz"),
+        mkRowCell("cf2", "a", 4L, "ok"),
+        mkRowCell("cf2", "a", 5L, "yo")))
+
+      Evaluator.toRValue(row.toRow) must_== RObject(Map(
+        "key" -> CString("rowKey1"),
+        "timestamp" -> CLong(8L),
+        "cells" -> RObject(Map(
+          "cf1" -> RObject(
+            "a" -> CString("baz")),
+          "cf2" -> RObject(
+            "a" -> CString("bar"))))))
+    }
   }
 }
