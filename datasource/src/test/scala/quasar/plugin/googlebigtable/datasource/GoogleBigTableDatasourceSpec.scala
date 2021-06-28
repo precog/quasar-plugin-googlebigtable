@@ -17,7 +17,7 @@
 package quasar.plugin.googlebigtable.datasource
 
 import quasar.api.resource.{ResourceName, ResourcePath, ResourcePathType}
-import quasar.connector.datasource.{DatasourceSpec, LightweightDatasourceModule}
+import quasar.connector.datasource.{DatasourceSpec, DatasourceModule}
 
 import cats.effect.{IO, Resource}
 import fs2.Stream
@@ -35,7 +35,7 @@ class GoogleBigTableDatasourceSpec extends DatasourceSpec[IO, Stream[IO, ?], Res
 
   val log: SelfAwareStructuredLogger[IO] = Slf4jLogger.getLoggerFromName("GoogleBigTableDatasourceSpec")
 
-  def mkDatasource(config: Config): Resource[IO, LightweightDatasourceModule.DS[IO]] =
+  def mkDatasource(config: Config): Resource[IO, DatasourceModule.DS[IO]] =
     GoogleBigTableDatasource[IO](log, config)
 
   val nonExistentPath =

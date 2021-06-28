@@ -21,7 +21,7 @@ import slamdata.Predef._
 import quasar.RateLimiting
 import quasar.api.datasource.{DatasourceError, DatasourceType}, DatasourceError._
 import quasar.connector._
-import quasar.connector.datasource.{LightweightDatasourceModule, Reconfiguration}
+import quasar.connector.datasource.{DatasourceModule, Reconfiguration}
 import quasar.plugin.googlebigtable.datasource.json._
 
 import java.util.UUID
@@ -36,7 +36,7 @@ import org.typelevel.log4cats.SelfAwareStructuredLogger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import scalaz.NonEmptyList
 
-object GoogleBigTableDatasourceModule extends LightweightDatasourceModule {
+object GoogleBigTableDatasourceModule extends DatasourceModule {
 
   override def kind: DatasourceType = DatasourceType("googlebigtable", 1L)
 
@@ -75,13 +75,13 @@ object GoogleBigTableDatasourceModule extends LightweightDatasourceModule {
     back.tupleLeft(Reconfiguration.Reset)
   }
 
-  def lightweightDatasource[F[_]: ConcurrentEffect: ContextShift: MonadResourceErr: Timer, A: Hash](
+  def datasource[F[_]: ConcurrentEffect: ContextShift: MonadResourceErr: Timer, A: Hash](
       config: Json,
       rateLimiting: RateLimiting[F,A],
       byteStore: ByteStore[F],
       auth: UUID => F[Option[ExternalCredentials[F]]])(
       implicit ec: ExecutionContext)
-      : Resource[F, Either[InitializationError[Json], LightweightDatasourceModule.DS[F]]] = {
+      : Resource[F, Either[InitializationError[Json], DatasourceModule.DS[F]]] = {
 
     val log: SelfAwareStructuredLogger[F] = Slf4jLogger.getLoggerFromName("quasar.datasource.googlebigtable")
 
@@ -93,7 +93,7 @@ object GoogleBigTableDatasourceModule extends LightweightDatasourceModule {
       case Left((msg, _)) =>
         DatasourceError
           .invalidConfiguration[Json, InitializationError[Json]](kind, sanitizeConfig(config), NonEmptyList(msg))
-          .asLeft[LightweightDatasourceModule.DS[F]]
+          .asLeft[DatasourceModule.DS[F]]
           .pure[Resource[F, ?]]
     }
   }

@@ -23,7 +23,7 @@ import quasar.api.push.{InternalKey, OffsetPath}
 import quasar.api.resource._, ResourcePath._
 import quasar.common.data.{QDataRValue, RValue}
 import quasar.connector._
-import quasar.connector.datasource.{BatchLoader, LightweightDatasource, Loader}
+import quasar.connector.datasource.{BatchLoader, DatasourceModule, Loader}
 import quasar.qscript.InterpretedRead
 
 import cats.data.NonEmptyList
@@ -42,7 +42,7 @@ final class GoogleBigTableDatasource[F[_]: ConcurrentEffect: MonadResourceErr](
     log: SelfAwareStructuredLogger[F],
     dataClient: BigtableDataClient,
     config: Config)
-    extends LightweightDatasource[Resource[F, ?], Stream[F, ?], QueryResult[F]] {
+    extends DatasourceModule.DS[F] {
 
   def kind: DatasourceType = GoogleBigTableDatasource.DsType
 

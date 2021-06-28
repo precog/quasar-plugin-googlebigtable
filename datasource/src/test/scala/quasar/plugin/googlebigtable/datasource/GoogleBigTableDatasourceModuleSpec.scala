@@ -21,7 +21,7 @@ import slamdata.Predef._
 import quasar.RateLimiter
 import quasar.api.datasource.DatasourceError, DatasourceError._
 import quasar.connector.ByteStore
-import quasar.connector.datasource.{LightweightDatasourceModule => DSM}
+import quasar.connector.datasource.{DatasourceModule => DSM}
 
 import java.util.UUID
 
@@ -42,7 +42,7 @@ class GoogleBigTableDatasourceModuleSpec extends Specification with DsIO {
       : Resource[IO, Either[InitializationError[Json], DSM.DS[IO]]] =
     RateLimiter[IO, UUID](IO(UUID.randomUUID()))
       .flatMap(rl =>
-        GoogleBigTableDatasourceModule.lightweightDatasource[IO, UUID](j, rl, ByteStore.void[IO], _ => IO(None)))
+        GoogleBigTableDatasourceModule.datasource[IO, UUID](j, rl, ByteStore.void[IO], _ => IO(None)))
 
   "datasource init" >> {
     "succeeds when correct cfg" >> {
