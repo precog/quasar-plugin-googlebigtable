@@ -38,7 +38,7 @@ import com.google.protobuf.ByteString
 import com.precog.googleauth.ServiceAccount
 import scala.concurrent.ExecutionContext
 import cats.effect.testing.specs2.CatsIO
-import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
+import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 trait DsIO extends CatsIO {
 
@@ -47,8 +47,8 @@ trait DsIO extends CatsIO {
   implicit val ioMonadResourceErr: MonadError_[IO, ResourceError] =
     MonadError_.facet[IO](ResourceError.throwableP)
 
-  def mkRowCell(cf: String, qual: String, ts: Long, value: String, labels: List[String] = List.empty): RowCell =
-    RowCell.create(cf, ByteString.copyFromUtf8(qual), ts * 1000L, /*TODO support labels? labels.asJava*/ List.empty.asJava, ByteString.copyFromUtf8(value))
+  def mkRowCell(cf: String, qual: String, ts: Long, value: String): RowCell =
+    RowCell.create(cf, ByteString.copyFromUtf8(qual), ts * 1000L, List.empty.asJava, ByteString.copyFromUtf8(value))
 
   val AuthResourceName = "precog-ci-275718-6d5ee6b82f02.json"
   val PrecogInstance = InstanceId("precog-test")
@@ -84,7 +84,7 @@ trait DsIO extends CatsIO {
       admin <- GoogleBigTable.adminClient[IO](cfg)
       data <- GoogleBigTable.dataClient[IO](cfg)
       log = Slf4jLogger.getLoggerFromName[IO]("Test")
-      ds = new GoogleBigTableDatasource[IO](log, admin, data, cfg)
+      ds = new GoogleBigTableDatasource[IO](log, data, cfg)
       _ <- table(admin, tableName, columnFamilies)
       resName = ResourceName(tableName.value + rowPrefix.resourceNamePart)
     } yield (ds, admin, data, ResourcePath.root() / resName, tableName)

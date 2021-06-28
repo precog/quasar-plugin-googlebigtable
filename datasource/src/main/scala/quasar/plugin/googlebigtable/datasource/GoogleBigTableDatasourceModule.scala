@@ -32,8 +32,8 @@ import argonaut._, Argonaut._
 import cats.effect._
 import cats.kernel.Hash
 import cats.implicits._
-import io.chrisdavenport.log4cats.SelfAwareStructuredLogger
-import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
+import org.typelevel.log4cats.SelfAwareStructuredLogger
+import org.typelevel.log4cats.slf4j.Slf4jLogger
 import scalaz.NonEmptyList
 
 object GoogleBigTableDatasourceModule extends LightweightDatasourceModule {

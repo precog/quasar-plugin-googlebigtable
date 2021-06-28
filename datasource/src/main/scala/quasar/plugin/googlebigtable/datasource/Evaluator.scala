@@ -20,12 +20,16 @@ import slamdata.Predef._
 
 import quasar.common.data.{CLong, CString, RObject, RValue}
 
+import java.lang.Math
 import scala.collection.JavaConverters._
 
-import cats.effect.ConcurrentEffect
+import cats.implicits._
+import cats.effect.{ConcurrentEffect, Sync}
 
+import com.google.api.gax.rpc.StreamController
+import com.google.api.gax.rpc.StateCheckingResponseObserver
 import com.google.cloud.bigtable.data.v2.BigtableDataClient
-import com.google.cloud.bigtable.data.v2.models.{Query => GQuery, Row, RowCell}
+import com.google.cloud.bigtable.data.v2.models.{Query => GQuery, Row}
 
 import fs2.Stream
 
@@ -36,7 +40,6 @@ class Evaluator[F[_]: ConcurrentEffect](client: BigtableDataClient, query: GQuer
     val handler = Observer.handler[F](client.readRowsAsync(query, _))
     CallbackHandler.toStream[F, Row](handler, maxQueueSize).map(toRValue(_))
   }
-
 }
 
 object Evaluator {
@@ -47,20 +50,48 @@ object Evaluator {
     new Evaluator[F](client, query, maxQueueSize)
 
   def toRValue(row: Row): RValue = {
-    val values: Map[String, Map[String, RValue]] = row.getCells.asScala.toList.foldLeft(Map.empty[String, Map[String, RValue]]) { case (m, cell) =>
-      m + ((cell.getFamily(), m.getOrElse(cell.getFamily(), Map.empty[String, RValue]) + rowCellToRObjectEntry(cell)))
-    }
+    val (ts: Long, values: Map[String, Map[String, (Long, RValue)]]) =
+      row.getCells.asScala.toList.foldLeft((0L, Map.empty[String, Map[String, (Long, RValue)]])) { case ((ts, m), cell) =>
+        val entry = (cell.getQualifier.toStringUtf8, (cell.getTimestamp(), CString(cell.getValue.toStringUtf8)))
+        val fetchedValue = m.getOrElse(cell.getFamily(), Map.empty[String, (Long, RValue)]).get(cell.getQualifier.toStringUtf8)
+        val (tsw, entryToWrite) = toWrite(entry, fetchedValue)
+        val maxTs = Math.max(ts, tsw)
+        val newMap = entryToWrite.fold(m)(e => m + ((cell.getFamily(), m.getOrElse(cell.getFamily(), Map.empty[String, (Long, RValue)]) + e)))
+        (maxTs / 1000, newMap)
+      }
     RObject(
       "key" -> CString(row.getKey().toStringUtf8()),
-      "cells" -> RObject(values.mapValues(RObject(_))))
+      "timestamp" -> CLong(ts),
+      "cells" -> RObject(values.mapValues(x => RObject(x.mapValues(_._2)))))
   }
 
-  private def rowCellToRObjectEntry(rowCell: RowCell): (String, RValue) = {
-    val rv = RObject(
-      "value" -> CString(rowCell.getValue.toStringUtf8),
-      // TODO support labels?
-      //"labels" -> RArray(rowCell.getLabels().asScala.map(CString(_)).toList),
-      "timestamp" -> CLong(rowCell.getTimestamp()))
-    (rowCell.getQualifier.toStringUtf8, rv)
+  private def toWrite(entry: (String, (Long, RValue)), fetched: Option[(Long, RValue)]): (Long, Option[(String, (Long, RValue))]) =
+    fetched.fold((entry._2._1, entry.some)) { f =>
+      if (f._1 >= entry._2._1) (f._1, none)
+      else (entry._2._1, entry.some)
+    }
+
+  class Observer[F[_]: Sync](callback: CallbackHandler.Callback[F, Row]) extends StateCheckingResponseObserver[Row] {
+
+    override protected def onStartImpl(controller: StreamController): Unit =
+      ()
+
+    override protected def onResponseImpl(row: Row): Unit =
+      callback(Right(Some(Sync[F].delay(row))))
+
+    override protected def onErrorImpl(t: Throwable): Unit =
+      callback(Left(t))
+
+    override protected def onCompleteImpl(): Unit =
+      callback(Right(None))
+
+  }
+
+  object Observer {
+    def handler[F[_]: Sync](f: Observer[F] => Unit): (Either[Throwable, Option[F[Row]]] => Unit) => F[Unit] = { cb =>
+      Sync[F].delay {
+        f(new Observer(cb))
+      }
+    }
   }
 }

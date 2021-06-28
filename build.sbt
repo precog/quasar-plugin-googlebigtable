@@ -11,12 +11,14 @@ ThisBuild / scmInfo := Some(ScmInfo(
 
 ThisBuild / publishAsOSSProject := true
 
-val precogGoogleAuthVersion = "0.0.1"
 val bigTableVersion = "1.20.1"
 
 val specs2Version = "4.10.5"
 val catsEffectTestingSpecs2Version = "0.4.1"
 val log4jVersion = "2.14.0"
+
+lazy val precogGoogleAuthVersion =
+  Def.setting[String](managedVersions.value("precog-precog-google-auth"))
 
 lazy val quasarVersion =
   Def.setting[String](managedVersions.value("precog-quasar"))
@@ -40,9 +42,9 @@ lazy val datasource = project
     quasarPluginDatasourceFqcn := Some("quasar.plugin.googlebigtable.datasource.GoogleBigTableDatasourceModule$"),
 
     quasarPluginDependencies ++= Seq(
-      "com.precog" %% "precog-google-auth" % managedVersions.value("precog-precog-google-auth"),
+      "com.precog" %% "precog-google-auth" % precogGoogleAuthVersion.value,
       "com.google.cloud.bigtable" % "bigtable-hbase-1.x" % bigTableVersion,
-      "io.chrisdavenport" %% "log4cats-slf4j" % "1.1.1"
+      "org.typelevel" %% "log4cats-slf4j" % "1.3.1"
     ),
 
     libraryDependencies ++= Seq(

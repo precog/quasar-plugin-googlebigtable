@@ -28,31 +28,49 @@ object EvaluatorSpec extends Specification with DsIO {
 
   "toRValue" >> {
 
-    def mkValTsLabelsRObject(value: String, ts: Long, ls: List[String] = List.empty) =
-      RObject(
-        "value" -> CString(value),
-        // TODO support labels?
-        // "labels" -> RArray(ls.map(CString(_))),
-        "timestamp" -> CLong(ts))
-
     val row = TestRow("rowKey1", List(
-      mkRowCell("cf1", "a", 1L, "foo", List("l1", "l2")),
+      mkRowCell("cf1", "a", 1L, "foo"),
       mkRowCell("cf1", "b", 2L, "bar"),
-      mkRowCell("cf2", "c", 3L, "baz", List("l3")),
-      mkRowCell("cf2", "d", 4L, "ok", List("l1")),
-      mkRowCell("cf2", "e", 5L, "yo", List("l2"))))
+      mkRowCell("cf2", "c", 3L, "baz"),
+      mkRowCell("cf2", "d", 4L, "ok"),
+      mkRowCell("cf2", "e", 5L, "yo")))
 
     "simple" >> {
       Evaluator.toRValue(row.toRow) must_== RObject(Map(
         "key" -> CString("rowKey1"),
+        "timestamp" -> CLong(5L),
         "cells" -> RObject(Map(
           "cf1" -> RObject(
-            "a" -> mkValTsLabelsRObject("foo", 1000L, List("l1", "l2")),
-            "b" -> mkValTsLabelsRObject("bar", 2000L)),
+            "a" -> CString("foo"),
+            "b" -> CString("bar")),
           "cf2" -> RObject(
-            "c" -> mkValTsLabelsRObject("baz", 3000L, List("l3")),
-            "d" -> mkValTsLabelsRObject("ok", 4000L, List("l1")),
-            "e" -> mkValTsLabelsRObject("yo", 5000L, List("l2")))))))
+            "c" -> CString("baz"),
+            "d" -> CString("ok"),
+            "e" -> CString("yo"))))))
+    }
+
+    "takes last entry on duplicates" >> {
+
+      val row = TestRow("rowKey1", List(
+        mkRowCell("cf1", "a", 1L, "foo"),
+        mkRowCell("cf1", "a", 2L, "bar"),
+        mkRowCell("cf1", "a", 7L, "baz"),
+        mkRowCell("cf1", "a", 4L, "ok"),
+        mkRowCell("cf1", "a", 5L, "yo"),
+        mkRowCell("cf2", "a", 1L, "foo"),
+        mkRowCell("cf2", "a", 8L, "bar"),
+        mkRowCell("cf2", "a", 3L, "baz"),
+        mkRowCell("cf2", "a", 4L, "ok"),
+        mkRowCell("cf2", "a", 5L, "yo")))
+
+      Evaluator.toRValue(row.toRow) must_== RObject(Map(
+        "key" -> CString("rowKey1"),
+        "timestamp" -> CLong(8L),
+        "cells" -> RObject(Map(
+          "cf1" -> RObject(
+            "a" -> CString("baz")),
+          "cf2" -> RObject(
+            "a" -> CString("bar"))))))
     }
   }
 }

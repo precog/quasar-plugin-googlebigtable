@@ -23,8 +23,12 @@ import fs2.Stream
 import fs2.concurrent.Queue
 
 object CallbackHandler {
+
+  type Callback[F[_], A] = Either[Throwable, Option[F[A]]] => Unit
+  type Handler[F[_], A] = Callback[F, A] => F[Unit]
+
   def toStream[F[_]: ConcurrentEffect, A](
-      handler: (Either[Throwable, Option[F[A]]] => Unit) => F[Unit],
+      handler: Handler[F, A],
       maxQueueSize: Int)
       : Stream[F, A] =
     (for {
